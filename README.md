@@ -4,5 +4,5 @@ Autistic Spectrum Disorder (ASD) is a neurodevelopmental condition that incurs c
 ## Repository Structure
 
 The repository is organized as follows:
-`data/`: Contains the dataset files.
-`notebooks/`: Contains Kaggle & Google Colab notebooks showcasing the step-by-step implementation of the case study.
+- `data/`: Contains the dataset files.
+- `notebooks/`: Contains Kaggle & Google Colab notebooks showcasing the step-by-step implementation of the case study.
