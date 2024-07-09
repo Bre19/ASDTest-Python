@@ -1,0 +1,10 @@
+pandas
+matplotlib.pyplot
+numpy
+seaborn
+LabelEncoder
+train_test_split
+StandardScaler
+Sequential
+Dense
+EarlyStopping
