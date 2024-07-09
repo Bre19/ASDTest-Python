@@ -1,10 +1,7 @@
+streamlit
 pandas
-matplotlib.pyplot
+matplotlib
 numpy
 seaborn
-LabelEncoder
-train_test_split
-StandardScaler
-Sequential
-Dense
-EarlyStopping
+scikit-learn
+keras
