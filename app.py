@@ -5,7 +5,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-# Dummy dataset and model training for demonstration
+## Dummy dataset dan model training untuk demonstrasi
 def create_dummy_data():
     np.random.seed(42)
     X = pd.DataFrame({
@@ -31,7 +31,7 @@ def create_dummy_data():
 
 X, y = create_dummy_data()
 
-# Preprocessing
+## Preprocessing
 sex_encoder = LabelEncoder()
 sex_encoder.fit(X['Sex'])
 X['Sex'] = sex_encoder.transform(X['Sex'])
@@ -48,15 +48,27 @@ X = pd.get_dummies(X, columns=["Ethnicity", "Who_completed_the_test"], drop_firs
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Train model
 model = LogisticRegression(max_iter=1000, random_state=42)
 model.fit(X_scaled, y)
 
-# Fungsi untuk menerima input pengguna dari Streamlit
+## Untuk inputan yang dimasukan oleh user
 def get_user_input():
+    questions = [
+        "Does your child look at you when you call his/her name?",
+        "How easy is it for you to get eye contact with your child?",
+        "Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)",
+        "Does your child point to share interest with you? (e.g. pointing at an interesting sight)",
+        "Does your child pretend? (e.g. care for dolls, talk on a toy phone)",
+        "Does your child follow where you’re looking?",
+        "If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)",
+        "Would you describe your child’s first words as:",
+        "Does your child use simple gestures? (e.g. wave goodbye)",
+        "Does your child stare at nothing with no apparent purpose?"
+    ]
+
     responses = []
-    for i in range(1, 11):
-        response = st.selectbox(f"Pertanyaan {i} (1 untuk Ya, 0 untuk Tidak): ", [1, 0], key=f'q{i}')
+    for i, question in enumerate(questions):
+        response = st.selectbox(f"Pertanyaan {i+1}: {question}", [1, 0], key=f'q{i+1}')
         responses.append(response)
 
     age_mons = st.number_input("Masukkan umur dalam bulan: ", min_value=1)
@@ -87,7 +99,7 @@ def get_user_input():
 
     return user_input
 
-# Fungsi untuk melakukan preprocessing terhadap input pengguna
+## Fungsi untuk melakukan preprocessing terhadap input pengguna
 def preprocess_user_input(user_input, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder):
     df = pd.DataFrame([user_input])
 
@@ -109,7 +121,7 @@ def preprocess_user_input(user_input, scaler, sex_encoder, jaundice_encoder, fam
 
     return df_scaled
 
-# Fungsi untuk memberikan prediksi
+## Fungsi untuk memberikan prediksi
 def predict_asd(model, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder):
     user_input = get_user_input()
     user_input_preprocessed = preprocess_user_input(user_input, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder)
@@ -117,7 +129,7 @@ def predict_asd(model, scaler, sex_encoder, jaundice_encoder, family_mem_with_as
     result = "Terkena ASD" if prediction[0] == 1 else "Tidak Terkena ASD"
     st.write(f"Hasil prediksi: {result}")
 
-# Menjalankan prediksi
+## Menjalankan prediksi
 if __name__ == "__main__":
     st.title("Aplikasi Prediksi ASD")
     predict_asd(model, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder)
