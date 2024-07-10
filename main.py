@@ -1,11 +1,19 @@
 import pandas as pd
+import streamlit as st
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.neural_network import MLPClassifier
 
+# Function to load datasets
+def load_data():
+    d1 = pd.read_csv("https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv")
+    d2 = pd.read_csv("https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/autism_screening.csv")
+    d3 = pd.read_csv("https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/data_csv.csv")
+    return d1, d2, d3
+
 # Preprocess data function
-@st.cache
+@st.cache_data
 def preprocess_data(d1, d2, d3):
     # Convert ages from months to years if column exists
     if 'Age_Mons' in d1.columns:
