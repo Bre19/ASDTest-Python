@@ -15,11 +15,6 @@ def load_data():
 # Preprocess data
 @st.cache_data
 def preprocess_data(d1, d2, d3):
-    # Display column names for debugging
-    st.write("Columns in d1:", d1.columns)
-    st.write("Columns in d2:", d2.columns)
-    st.write("Columns in d3:", d3.columns)
-
     # Rename columns for consistency
     d1 = d1.rename(columns={
         'Case_No': 'Case_No',
@@ -86,13 +81,6 @@ def preprocess_data(d1, d2, d3):
         'ASD_traits': 'ASD_traits'
     })
 
-    # Check for common columns
-    common_columns = set(d1.columns) & set(d2.columns) & set(d3.columns)
-    if not common_columns:
-        raise ValueError("No common columns between d1, d2, and d3 for merging.")
-
-    st.write("Common columns found:", common_columns)
-
     # Combine datasets on common columns
     combined_data = pd.concat([d1, d2, d3], axis=0, ignore_index=True, join='inner')
 
@@ -146,13 +134,6 @@ def main():
     d1, d2, d3 = load_data()
     X_scaled, y, scaler, le_sex, le_jaundice, le_family_mem_with_asd, le_asd_traits = preprocess_data(d1, d2, d3)
 
-    # Display sample data
-    st.write("Sample data:")
-    st.write(pd.DataFrame(X_scaled, columns=[col for col in d1.columns if col != 'ASD_traits']).head())
-
-    st.write("Sample target values:")
-    st.write(pd.DataFrame({'ASD_traits': y}).head())
-
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
@@ -169,6 +150,62 @@ def main():
     st.write(f"Precision: {precision_score(y_test, y_pred, average='weighted'):.2f}")
     st.write(f"Recall: {recall_score(y_test, y_pred, average='weighted'):.2f}")
     st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
+
+    # User input form
+    st.sidebar.header("Input Data")
+
+    # Collecting user inputs
+    user_responses = []
+    questions = [
+        "Does your child look at you when you call his/her name?",
+        "How easy is it for you to get eye contact with your child?",
+        "Does your child use simple gestures? (e.g. wave goodbye)",
+        "Does your child stare at nothing with no apparent purpose?"
+    ]
+
+    for i, question in enumerate(questions):
+        response = st.sidebar.selectbox(f"Question {i+1}: {question}", [1, 0], key=f'q{i+1}')
+        user_responses.append(response)
+
+    age_years = st.sidebar.number_input("Enter age in years: ", min_value=1)
+    sex = st.sidebar.selectbox("Select gender (M/F): ", ['M', 'F'])
+    ethnicity = st.sidebar.selectbox("Select ethnicity: ", ['asian', 'white', 'black'])
+    jaundice = st.sidebar.selectbox("Has jaundice ever been experienced? (Yes/No): ", ['Yes', 'No'])
+    family_mem_with_asd = st.sidebar.selectbox("Is there a family member with ASD? (Yes/No): ", ['Yes', 'No'])
+    who_completed_the_test = st.sidebar.selectbox("Who completed the test? (Parent/Health Care Professional/Family Member): ", ['Parent', 'Health Care Professional', 'Family Member'])
+
+    user_input = user_responses + [age_years, sex, ethnicity, jaundice, family_mem_with_asd, who_completed_the_test]
+
+    # Preprocess user input
+    def preprocess_user_input(user_input):
+        columns = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'Age', 'Sex', 'Ethnicity_asian', 'Ethnicity_white', 'Who_completed_the_test_Health Care Professional', 'Who_completed_the_test_Family Member']
+        df = pd.DataFrame([user_input], columns=columns)
+
+        # Encode categorical features
+        df['Sex'] = le_sex.transform(df['Sex'])
+        df['Jaundice'] = le_jaundice.transform(df['Jaundice'])
+        df['Family_mem_with_ASD'] = le_family_mem_with_asd.transform(df['Family_mem_with_ASD'])
+
+        df = pd.get_dummies(df, columns=['Ethnicity', 'Who_completed_the_test'], drop_first=True)
+        
+        # Align columns with the training data
+        df = df.reindex(columns=X.columns, fill_value=0)
+
+        # Scaling
+        df_scaled = scaler.transform(df)
+
+        return df_scaled
+
+    # Predict ASD
+    def predict_asd():
+        user_input_preprocessed = preprocess_user_input(user_input)
+        prediction = model.predict(user_input_preprocessed)
+        result = "ASD Detected" if prediction[0] == 1 else "No ASD Detected"
+        st.write(f"Prediction Result: {result}")
+
+    # Display prediction result
+    if st.sidebar.button("Predict"):
+        predict_asd()
 
 if __name__ == "__main__":
     main()
