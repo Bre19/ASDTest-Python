@@ -81,11 +81,14 @@ def preprocess_data(d1, d2, d3):
         'ASD_traits': 'ASD_traits'
     })
 
-    # Combine datasets on common columns
-    combined_data = pd.concat([d1, d2, d3], axis=0, ignore_index=True, join='inner')
+    # Concatenate datasets on common columns
+    combined_data = pd.concat([d1, d2, d3], axis=0, ignore_index=True, join='outer')
 
-    # Handle missing values
-    combined_data = combined_data.dropna()
+    # Reset index to ensure it's unique
+    combined_data = combined_data.reset_index(drop=True)
+
+    # Handle missing values (optional: you might want to use imputation strategies)
+    combined_data = combined_data.fillna(method='ffill').fillna(method='bfill')
 
     # Process categorical variables
     categorical_columns = ['Sex', 'Jaundice', 'Family_mem_with_ASD', 'ASD_traits']
@@ -178,41 +181,23 @@ def main():
 
     # Preprocess user input
     def preprocess_user_input(user_input):
-        # Construct a DataFrame for the user input
-        user_input_df = pd.DataFrame([user_input], columns=['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'Age', 'Sex', 'Ethnicity', 'Jaundice', 'Family_mem_with_ASD', 'Who_completed_the_test'])
-        
-        # Encode categorical features
-        user_input_df['Sex'] = le_sex.transform(user_input_df['Sex'])
-        user_input_df['Jaundice'] = le_jaundice.transform(user_input_df['Jaundice'])
-        user_input_df['Family_mem_with_ASD'] = le_family_mem_with_asd.transform(user_input_df['Family_mem_with_ASD'])
-        user_input_df['Ethnicity'] = user_input_df['Ethnicity'].map({'asian': 'Ethnicity_asian', 'white': 'Ethnicity_white', 'black': 'Ethnicity_black'}).fillna('Ethnicity_other')
-        user_input_df['Who_completed_the_test'] = user_input_df['Who_completed_the_test'].map({
-            'Parent': 'Who_completed_the_test_Parent',
-            'Health Care Professional': 'Who_completed_the_test_Health Care Professional',
-            'Family Member': 'Who_completed_the_test_Family Member'
-        }).fillna('Who_completed_the_test_Other')
+        columns = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'Age', 'Sex', 'Ethnicity', 'Jaundice', 'Family_mem_with_ASD', 'Who_completed_the_test']
+        user_df = pd.DataFrame([user_input], columns=columns)
+        user_df['Sex'] = le_sex.transform(user_df['Sex'])
+        user_df['Jaundice'] = le_jaundice.transform(user_df['Jaundice'])
+        user_df['Family_mem_with_ASD'] = le_family_mem_with_asd.transform(user_df['Family_mem_with_ASD'])
+        user_df['Who_completed_the_test'] = le_sex.transform(user_df['Who_completed_the_test'])  # Assuming 'Who_completed_the_test' uses the same encoding
+        user_df['Ethnicity'] = le_sex.transform(user_df['Ethnicity'])  # Assuming 'Ethnicity' uses the same encoding
+        return scaler.transform(user_df)
 
-        # One-hot encoding
-        user_input_df = pd.get_dummies(user_input_df, columns=['Ethnicity', 'Who_completed_the_test'], drop_first=True)
-        
-        # Align columns with the training data
-        user_input_df = user_input_df.reindex(columns=X.columns, fill_value=0)
+    # Predict with user input
+    user_input_scaled = preprocess_user_input(user_input)
+    prediction = model.predict(user_input_scaled)
+    prediction_proba = model.predict_proba(user_input_scaled)
 
-        # Scaling
-        user_input_scaled = scaler.transform(user_input_df)
-
-        return user_input_scaled
-
-    # Predict ASD
-    def predict_asd():
-        user_input_preprocessed = preprocess_user_input(user_input)
-        prediction = model.predict(user_input_preprocessed)
-        result = "ASD Detected" if prediction[0] == 1 else "No ASD Detected"
-        st.write(f"Prediction Result: {result}")
-
-    # Display prediction result
-    if st.sidebar.button("Predict"):
-        predict_asd()
+    st.sidebar.write("Prediction:")
+    st.sidebar.write("ASD Positive" if prediction[0] == 1 else "ASD Negative")
+    st.sidebar.write(f"Probability: {prediction_proba[0][1]:.2f}")
 
 if __name__ == "__main__":
     main()
