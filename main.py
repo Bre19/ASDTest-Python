@@ -17,9 +17,14 @@ def load_data():
 # Preprocess data function
 @st.cache
 def preprocess_data(d1, d2, d3):
-    # Convert ages from months to years
-    d1["Age_Mons"] = (d1["Age_Mons"] / 12).astype(int)
-    d3["age"] = (d3["age"] / 12).astype(int)
+    # Convert ages from months to years if column exists
+    if 'Age_Mons' in d1.columns:
+        d1["Age_Mons"] = (d1["Age_Mons"] / 12).astype(int)
+    if 'age' in d3.columns:
+        d3["age"] = (d3["age"] / 12).astype(int)
+    else:
+        # Handle the case where 'age' column is missing
+        st.warning("Column 'age' is missing in d3")
 
     # Drop rows with missing values
     d2 = d2.dropna()
