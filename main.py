@@ -137,3 +137,38 @@ def preprocess_data(d1, d2, d3):
     X_scaled = scaler.fit_transform(X)
 
     return X_scaled, y, scaler, le_sex, le_jaundice, le_family_mem_with_asd, le_asd_traits
+
+# Streamlit app
+def main():
+    st.title("ASD Prediction Dashboard")
+
+    # Load and preprocess data
+    d1, d2, d3 = load_data()
+    X_scaled, y, scaler, le_sex, le_jaundice, le_family_mem_with_asd, le_asd_traits = preprocess_data(d1, d2, d3)
+
+    # Display sample data
+    st.write("Sample data:")
+    st.write(pd.DataFrame(X_scaled, columns=[col for col in d1.columns if col != 'ASD_traits']).head())
+
+    st.write("Sample target values:")
+    st.write(pd.DataFrame({'ASD_traits': y}).head())
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+    # Train model
+    model = MLPClassifier(hidden_layer_sizes=(100,), max_iter=500, random_state=42)
+    model.fit(X_train, y_train)
+
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    # Display metrics
+    st.write("Model Evaluation Metrics:")
+    st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+    st.write(f"Precision: {precision_score(y_test, y_pred, average='weighted'):.2f}")
+    st.write(f"Recall: {recall_score(y_test, y_pred, average='weighted'):.2f}")
+    st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
+
+if __name__ == "__main__":
+    main()
