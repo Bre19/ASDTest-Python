@@ -32,7 +32,7 @@ def preprocess_data(d1, d2, d3):
 
     # Adjust column indices based on the actual columns in d2
     d2_columns = d2.columns.tolist()
-    # Check valid indices for d2
+    # Ensure valid indices for d2
     selected_columns_d2 = d2_columns[1:11] + [d2_columns[i] for i in [12, 13, 22, 23, 24, 25, 26, 27] if i < len(d2_columns)]
     d2 = d2[selected_columns_d2]
 
@@ -42,8 +42,15 @@ def preprocess_data(d1, d2, d3):
     d3 = d3[selected_columns_d3]
 
     # Ensure all datasets have the same columns
-    d1.columns = d2.columns
-    d3.columns = d2.columns
+    # Find common columns between d1 and d2
+    common_columns = set(d1.columns).intersection(d2.columns)
+    if not common_columns:
+        raise ValueError("No common columns between d1 and d2 for merging.")
+
+    # Ensure d1 and d2 have the same columns
+    d1 = d1[common_columns]
+    d2 = d2[common_columns]
+    d3 = d3[common_columns]
 
     # Combine datasets
     data = pd.concat([d1, d2, d3], axis=0)
