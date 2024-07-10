@@ -178,23 +178,30 @@ def main():
 
     # Preprocess user input
     def preprocess_user_input(user_input):
-        columns = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'Age', 'Sex', 'Ethnicity_asian', 'Ethnicity_white', 'Who_completed_the_test_Health Care Professional', 'Who_completed_the_test_Family Member']
-        df = pd.DataFrame([user_input], columns=columns)
-
+        # Construct a DataFrame for the user input
+        user_input_df = pd.DataFrame([user_input], columns=['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'Age', 'Sex', 'Ethnicity', 'Jaundice', 'Family_mem_with_ASD', 'Who_completed_the_test'])
+        
         # Encode categorical features
-        df['Sex'] = le_sex.transform(df['Sex'])
-        df['Jaundice'] = le_jaundice.transform(df['Jaundice'])
-        df['Family_mem_with_ASD'] = le_family_mem_with_asd.transform(df['Family_mem_with_ASD'])
+        user_input_df['Sex'] = le_sex.transform(user_input_df['Sex'])
+        user_input_df['Jaundice'] = le_jaundice.transform(user_input_df['Jaundice'])
+        user_input_df['Family_mem_with_ASD'] = le_family_mem_with_asd.transform(user_input_df['Family_mem_with_ASD'])
+        user_input_df['Ethnicity'] = user_input_df['Ethnicity'].map({'asian': 'Ethnicity_asian', 'white': 'Ethnicity_white', 'black': 'Ethnicity_black'}).fillna('Ethnicity_other')
+        user_input_df['Who_completed_the_test'] = user_input_df['Who_completed_the_test'].map({
+            'Parent': 'Who_completed_the_test_Parent',
+            'Health Care Professional': 'Who_completed_the_test_Health Care Professional',
+            'Family Member': 'Who_completed_the_test_Family Member'
+        }).fillna('Who_completed_the_test_Other')
 
-        df = pd.get_dummies(df, columns=['Ethnicity', 'Who_completed_the_test'], drop_first=True)
+        # One-hot encoding
+        user_input_df = pd.get_dummies(user_input_df, columns=['Ethnicity', 'Who_completed_the_test'], drop_first=True)
         
         # Align columns with the training data
-        df = df.reindex(columns=X.columns, fill_value=0)
+        user_input_df = user_input_df.reindex(columns=X.columns, fill_value=0)
 
         # Scaling
-        df_scaled = scaler.transform(df)
+        user_input_scaled = scaler.transform(user_input_df)
 
-        return df_scaled
+        return user_input_scaled
 
     # Predict ASD
     def predict_asd():
