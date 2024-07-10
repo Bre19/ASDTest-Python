@@ -20,21 +20,30 @@ def preprocess_data(d1, d2, d3):
     # Convert ages from months to years if column exists
     if 'Age_Mons' in d1.columns:
         d1["Age_Mons"] = (d1["Age_Mons"] / 12).astype(int)
-    if 'age' in d3.columns:
-        d3["age"] = (d3["age"] / 12).astype(int)
-    else:
-        # Handle the case where 'age' column is missing
-        st.warning("Column 'age' is missing in d3")
 
     # Drop rows with missing values
     d2 = d2.dropna()
     d3 = d3.dropna()
 
-    # Ensure consistency in column names
+    # Remove columns and rename for consistency
     d1 = d1.iloc[:, 1:]
     d2 = pd.concat([d2.iloc[:, 1:11], d2.iloc[:, [12, 13, 22, 23, 24, 25, 26, 27]]], axis=1)
+
+    # Check for columns present in d3 and rename for consistency
+    d3 = d3.rename(columns={
+        "Age_Years": "Age_Mons",  # Adjust if needed
+        "Speech Delay/Language Disorder": "Speech_Delay_Language_Disorder",
+        "Learning disorder": "Learning_Disorder",
+        "Genetic_Disorders": "Genetic_Disorders",
+        "Depression": "Depression",
+        "Global developmental delay/intellectual disability": "Global_Developmental_Delay",
+        "Social/Behavioural Issues": "Social_Behavioural_Issues",
+        "Childhood Autism Rating Scale": "Childhood_Autism_Rating_Scale",
+        "Anxiety_disorder": "Anxiety_Disorder",
+    })
     d3 = pd.concat([d3.iloc[:, 0:11], d3.iloc[:, [17, 11, 12, 13, 14, 19, 20]]], axis=1)
 
+    # Ensure all datasets have the same columns
     d1.columns = d2.columns
     d3.columns = d2.columns
 
