@@ -4,4 +4,3 @@ matplotlib
 numpy
 seaborn
 scikit-learn
-tensorflow==2.11.0
