@@ -1,18 +1,8 @@
-import streamlit as st
 import pandas as pd
-import numpy as np
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.neural_network import MLPClassifier
-
-# Load data function
-@st.cache
-def load_data():
-    d1 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv')
-    d2 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/autism_screening.csv')
-    d3 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/data_csv.csv')
-    return d1, d2, d3
 
 # Preprocess data function
 @st.cache
@@ -25,23 +15,23 @@ def preprocess_data(d1, d2, d3):
     d2 = d2.dropna()
     d3 = d3.dropna()
 
+    # Print columns to debug the exact structure
+    print("d2 columns:", d2.columns.tolist())
+    print("d3 columns:", d3.columns.tolist())
+
     # Remove columns and rename for consistency
     d1 = d1.iloc[:, 1:]
-    d2 = pd.concat([d2.iloc[:, 1:11], d2.iloc[:, [12, 13, 22, 23, 24, 25, 26, 27]]], axis=1)
 
-    # Check for columns present in d3 and rename for consistency
-    d3 = d3.rename(columns={
-        "Age_Years": "Age_Mons",  # Adjust if needed
-        "Speech Delay/Language Disorder": "Speech_Delay_Language_Disorder",
-        "Learning disorder": "Learning_Disorder",
-        "Genetic_Disorders": "Genetic_Disorders",
-        "Depression": "Depression",
-        "Global developmental delay/intellectual disability": "Global_Developmental_Delay",
-        "Social/Behavioural Issues": "Social_Behavioural_Issues",
-        "Childhood Autism Rating Scale": "Childhood_Autism_Rating_Scale",
-        "Anxiety_disorder": "Anxiety_Disorder",
-    })
-    d3 = pd.concat([d3.iloc[:, 0:11], d3.iloc[:, [17, 11, 12, 13, 14, 19, 20]]], axis=1)
+    # Adjust column indices based on the actual columns in d2
+    d2_columns = d2.columns.tolist()
+    # Check valid indices for d2
+    selected_columns_d2 = d2_columns[1:11] + [d2_columns[i] for i in [12, 13, 22, 23, 24, 25, 26, 27] if i < len(d2_columns)]
+    d2 = d2[selected_columns_d2]
+
+    # Adjust column indices based on the actual columns in d3
+    d3_columns = d3.columns.tolist()
+    selected_columns_d3 = d3_columns[0:11] + [d3_columns[i] for i in [17, 11, 12, 13, 14, 19, 20] if i < len(d3_columns)]
+    d3 = d3[selected_columns_d3]
 
     # Ensure all datasets have the same columns
     d1.columns = d2.columns
