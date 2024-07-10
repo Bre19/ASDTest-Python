@@ -9,9 +9,9 @@ from sklearn.neural_network import MLPClassifier
 # Load data function
 @st.cache
 def load_data():
-    d1 = pd.read_csv('ASDTest-Python/data/Toddler Autism dataset July 2018.csv')
-    d2 = pd.read_csv('ASDTest-Python/data/autism_screening.csv')
-    d3 = pd.read_csv('ASDTest-Python/data/data_csv.csv')
+    d1 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv')
+    d2 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/autism_screening.csv')
+    d3 = pd.read_csv('https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/data_csv.csv')
     return d1, d2, d3
 
 # Preprocess data function
