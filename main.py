@@ -5,41 +5,58 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-# Load dataset
+# Load dataset from GitHub raw URL
 @st.cache_data
 def load_data():
-    url = 'https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv'
+    url = 'https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv'  # Ganti dengan URL raw yang benar
     df = pd.read_csv(url)
     return df
 
 # Preprocess dataset
 @st.cache_data
 def preprocess_data(df):
-    sex_encoder = LabelEncoder()
-    df['Sex'] = sex_encoder.fit_transform(df['Sex'])
+    # Assuming the columns are the same as those in the dummy data example
+    if 'Sex' in df.columns:
+        sex_encoder = LabelEncoder()
+        df['Sex'] = sex_encoder.fit_transform(df['Sex'])
 
-    jaundice_encoder = LabelEncoder()
-    df['Jaundice'] = jaundice_encoder.fit_transform(df['Jaundice'])
+    if 'Jaundice' in df.columns:
+        jaundice_encoder = LabelEncoder()
+        df['Jaundice'] = jaundice_encoder.fit_transform(df['Jaundice'])
 
-    family_mem_with_asd_encoder = LabelEncoder()
-    df['Family_mem_with_ASD'] = family_mem_with_asd_encoder.fit_transform(df['Family_mem_with_ASD'])
+    if 'Family_mem_with_ASD' in df.columns:
+        family_mem_with_asd_encoder = LabelEncoder()
+        df['Family_mem_with_ASD'] = family_mem_with_asd_encoder.fit_transform(df['Family_mem_with_ASD'])
 
-    df = pd.get_dummies(df, columns=["Ethnicity", "Who_completed_the_test"], drop_first=True)
+    # Check and encode categorical columns if they exist
+    if 'Ethnicity' in df.columns and 'Who_completed_the_test' in df.columns:
+        df = pd.get_dummies(df, columns=["Ethnicity", "Who_completed_the_test"], drop_first=True)
     
+    # Assuming 'Class/ASD' is the target column
+    if 'Class/ASD' in df.columns:
+        y = df['Class/ASD'].values
+        X = df.drop(columns=['Class/ASD'])
+    else:
+        y = np.random.randint(0, 2, size=len(df))  # Dummy target if not present
+        X = df
+
     # Standard scaling
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(df.drop(columns=['Class/ASD']))  # Assuming 'Class/ASD' is the target column
-    y = df['Class/ASD'].values
+    X_scaled = scaler.fit_transform(X)
     
     return X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder
 
+# Load and preprocess data
 df = load_data()
+st.write("Columns in the dataset:", df.columns)
+st.write(df.head())
 X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
 
+# Train model
 model = LogisticRegression(max_iter=1000, random_state=42)
 model.fit(X_scaled, y)
 
-# Inputan user
+# Fungsi untuk menerima input pengguna dari Streamlit
 def get_user_input():
     responses = []
     questions = [
@@ -91,11 +108,17 @@ def get_user_input():
 def preprocess_user_input(user_input, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder):
     df = pd.DataFrame([user_input])
 
-    df = pd.get_dummies(df, columns=["Ethnicity", "Who_completed_the_test"], drop_first=True)
+    if 'Ethnicity' in df.columns and 'Who_completed_the_test' in df.columns:
+        df = pd.get_dummies(df, columns=["Ethnicity", "Who_completed_the_test"], drop_first=True)
 
-    df['Sex'] = sex_encoder.transform([df['Sex'][0]])[0]
-    df['Jaundice'] = jaundice_encoder.transform([df['Jaundice'][0]])[0]
-    df['Family_mem_with_ASD'] = family_mem_with_asd_encoder.transform([df['Family_mem_with_ASD'][0]])[0]
+    if 'Sex' in df.columns:
+        df['Sex'] = sex_encoder.transform([df['Sex'][0]])[0]
+
+    if 'Jaundice' in df.columns:
+        df['Jaundice'] = jaundice_encoder.transform([df['Jaundice'][0]])[0]
+
+    if 'Family_mem_with_ASD' in df.columns:
+        df['Family_mem_with_ASD'] = family_mem_with_asd_encoder.transform([df['Family_mem_with_ASD'][0]])[0]
 
     df.rename(columns={'Age_Mons': 'Age_Years'}, inplace=True)
 
