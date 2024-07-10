@@ -17,11 +17,15 @@ def load_data():
 # Preprocess data function
 @st.cache
 def preprocess_data(d1, d2, d3):
+    # Convert ages from months to years
     d1["Age_Mons"] = (d1["Age_Mons"] / 12).astype(int)
-    d2 = d2.dropna()
-    d3 = d3.dropna()
     d3["age"] = (d3["age"] / 12).astype(int)
 
+    # Drop rows with missing values
+    d2 = d2.dropna()
+    d3 = d3.dropna()
+
+    # Ensure consistency in column names
     d1 = d1.iloc[:, 1:]
     d2 = pd.concat([d2.iloc[:, 1:11], d2.iloc[:, [12, 13, 22, 23, 24, 25, 26, 27]]], axis=1)
     d3 = pd.concat([d3.iloc[:, 0:11], d3.iloc[:, [17, 11, 12, 13, 14, 19, 20]]], axis=1)
@@ -29,8 +33,10 @@ def preprocess_data(d1, d2, d3):
     d1.columns = d2.columns
     d3.columns = d2.columns
 
+    # Combine datasets
     data = pd.concat([d1, d2, d3], axis=0)
 
+    # Replacement dictionary for inconsistent categorical values
     replacements = {
         'f': 'F',
         'm': 'M',
@@ -52,23 +58,34 @@ def preprocess_data(d1, d2, d3):
     }
     data = data.replace(replacements)
 
+    # Check if columns exist
+    required_columns = ['Sex', 'Jaundice', 'Family_mem_with_ASD', 'Ethnicity', 'Who_completed_the_test', 'ASD_traits']
+    for col in required_columns:
+        if col not in data.columns:
+            raise ValueError(f"Required column '{col}' is missing from the dataset")
+
+    # Split features and target variable
     X = data.drop("ASD_traits", axis=1)
     y = data["ASD_traits"]
 
-    # Encoding categorical features
-    sex_encoder = LabelEncoder()
-    X['Sex'] = sex_encoder.fit_transform(X['Sex'])
+    # Encode categorical features
+    if 'Sex' in X.columns:
+        sex_encoder = LabelEncoder()
+        X['Sex'] = sex_encoder.fit_transform(X['Sex'])
 
-    jaundice_encoder = LabelEncoder()
-    X['Jaundice'] = jaundice_encoder.fit_transform(X['Jaundice'])
+    if 'Jaundice' in X.columns:
+        jaundice_encoder = LabelEncoder()
+        X['Jaundice'] = jaundice_encoder.fit_transform(X['Jaundice'])
 
-    family_mem_with_asd_encoder = LabelEncoder()
-    X['Family_mem_with_ASD'] = family_mem_with_asd_encoder.fit_transform(X['Family_mem_with_ASD'])
+    if 'Family_mem_with_ASD' in X.columns:
+        family_mem_with_asd_encoder = LabelEncoder()
+        X['Family_mem_with_ASD'] = family_mem_with_asd_encoder.fit_transform(X['Family_mem_with_ASD'])
 
-    # One-hot encoding
-    X = pd.get_dummies(X, columns=["Ethnicity", "Who_completed_the_test"], drop_first=True)
-    
-    # Feature scaling
+    # One-hot encode remaining categorical features
+    categorical_features = ["Ethnicity", "Who_completed_the_test"]
+    X = pd.get_dummies(X, columns=[col for col in categorical_features if col in X.columns], drop_first=True)
+
+    # Standardize features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
@@ -94,9 +111,10 @@ precision = precision_score(y_test, y_pred, average='weighted')
 recall = recall_score(y_test, y_pred, average='weighted')
 f1 = f1_score(y_test, y_pred, average='weighted')
 
-# Print metrics
-st.write("Model Performance:")
-st.write(f"Accuracy: {accuracy:.2f}")
-st.write(f"Precision: {precision:.2f}")
-st.write(f"Recall: {recall:.2f}")
-st.write(f"F1 Score: {f1:.2f}")
+# Streamlit app
+st.title('Autism Spectrum Disorder Prediction')
+st.write("## Model Performance:")
+st.write(f"**Accuracy:** {accuracy:.2f}")
+st.write(f"**Precision:** {precision:.2f}")
+st.write(f"**Recall:** {recall:.2f}")
+st.write(f"**F1 Score:** {f1:.2f}")
