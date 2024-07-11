@@ -187,11 +187,16 @@ questions = {
 for key in questions:
     questions[key] = 1 if questions[key] == "Yes" else 0
 
+# Set default values for unseen labels
+DEFAULT_SEX = sex_encoder.transform(['Female'])[0]  # Assuming 'Female' is the default value
+DEFAULT_JAUNDICE = jaundice_encoder.transform(['No'])[0]  # Assuming 'No' is the default value
+DEFAULT_FAMILY_ASD = family_mem_with_asd_encoder.transform(['No'])[0]  # Assuming 'No' is the default value
+
 input_data = {
-    "Sex": sex,
+    "Sex": transform_column("Sex", sex, sex_encoder, DEFAULT_SEX),
     "Age_Mons": age_mons,
-    "Jaundice": jaundice,
-    "Family_mem_with_ASD": family_asd,
+    "Jaundice": transform_column("Jaundice", jaundice, jaundice_encoder, DEFAULT_JAUNDICE),
+    "Family_mem_with_ASD": transform_column("Family_mem_with_ASD", family_asd, family_mem_with_asd_encoder, DEFAULT_FAMILY_ASD),
     "Ethnicity": ethnicity,
     "Who completed the test": who_completed_test
 }
