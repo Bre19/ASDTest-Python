@@ -120,10 +120,13 @@ def predict_asd(input_data):
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-    input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
     # Ensure input data has the same columns as the training data
-    input_data = input_data.reindex(columns=df.columns.difference(["Class/ASD Traits "]), fill_value=0)
+    input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+    
+    # Reindex to match training data columns
+    all_columns = list(df.columns.difference(["Class/ASD Traits "]))  # All columns except the target
+    input_data = input_data.reindex(columns=all_columns, fill_value=0)
     
     input_data = scaler.transform(input_data)
     input_data = input_data.astype('float32')
