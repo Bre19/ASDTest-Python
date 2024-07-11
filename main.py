@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import joblib
+import os
 
 # Global variables for data and model
 df = None
@@ -93,16 +94,45 @@ def prepare_model_and_data():
 def load_saved_objects():
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test
     try:
-        sex_encoder = joblib.load('sex_encoder.pkl')
-        jaundice_encoder = joblib.load('jaundice_encoder.pkl')
-        family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
-        scaler = joblib.load('scaler.pkl')
-        model = load_model('asd_model.h5')
-        X_test = joblib.load('X_test.pkl')
-        y_test = joblib.load('y_test.pkl')
+        if os.path.exists('sex_encoder.pkl'):
+            sex_encoder = joblib.load('sex_encoder.pkl')
+        else:
+            raise FileNotFoundError("sex_encoder.pkl")
+        
+        if os.path.exists('jaundice_encoder.pkl'):
+            jaundice_encoder = joblib.load('jaundice_encoder.pkl')
+        else:
+            raise FileNotFoundError("jaundice_encoder.pkl")
+        
+        if os.path.exists('family_mem_with_asd_encoder.pkl'):
+            family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
+        else:
+            raise FileNotFoundError("family_mem_with_asd_encoder.pkl")
+        
+        if os.path.exists('scaler.pkl'):
+            scaler = joblib.load('scaler.pkl')
+        else:
+            raise FileNotFoundError("scaler.pkl")
+        
+        if os.path.exists('asd_model.h5'):
+            model = load_model('asd_model.h5')
+        else:
+            raise FileNotFoundError("asd_model.h5")
+        
+        if os.path.exists('X_test.pkl'):
+            X_test = joblib.load('X_test.pkl')
+        else:
+            raise FileNotFoundError("X_test.pkl")
+        
+        if os.path.exists('y_test.pkl'):
+            y_test = joblib.load('y_test.pkl')
+        else:
+            raise FileNotFoundError("y_test.pkl")
+        
     except FileNotFoundError as e:
         st.write(f"Error loading files: {e}")
-        st.write("Please make sure to run the model training and saving code first.")
+        st.write("Training model and saving files now...")
+        prepare_model_and_data()
 
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
