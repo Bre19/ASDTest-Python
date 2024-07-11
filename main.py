@@ -8,7 +8,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import os
 
-# Paths for saved files
+#Path untuk file atribut
 sex_encoder_path = 'sex_encoder.pkl'
 jaundice_encoder_path = 'jaundice_encoder.pkl'
 family_mem_with_asd_encoder_path = 'family_mem_with_asd_encoder.pkl'
@@ -18,7 +18,7 @@ model_path = 'asd_model.h5'
 X_test_path = 'X_test.pkl'
 y_test_path = 'y_test.pkl'
 
-# Global variables for encoders and model
+#Variabel atribut yang digunakan
 sex_encoder = None
 jaundice_encoder = None
 family_mem_with_asd_encoder = None
@@ -26,7 +26,7 @@ scaler = None
 feature_columns = None
 model = None
 
-# Function to load data from URL
+#Dataset
 @st.cache_data
 def load_data():
     url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
@@ -36,7 +36,7 @@ def load_data():
 def preprocess_and_train_model(df):
     df.replace({"Yes": 1, "No": 0}, inplace=True)
     
-    # Create and save encoders
+    #Encoding
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler
     sex_encoder = LabelEncoder()
     jaundice_encoder = LabelEncoder()
@@ -62,11 +62,10 @@ def preprocess_and_train_model(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Save the scaler and feature columns
     joblib.dump(scaler, scaler_path)
     joblib.dump(X.columns.tolist(), feature_columns_path)
     
-    # Train the model
+    #Latih Model
     def build_ann(input_dim):
         model = Sequential()
         model.add(Dense(64, activation="relu", input_dim=input_dim))
@@ -81,7 +80,6 @@ def preprocess_and_train_model(df):
         
         model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
         
-        # Save the trained model
         model.save(model_path)
 
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
@@ -127,15 +125,13 @@ def predict_asd(input_data):
     
     input_data = pd.DataFrame([input_data])
     
-    # Handle unseen labels
     def transform_column(column_name, encoder, default_value):
         try:
             return encoder.transform(input_data[column_name])[0]
         except ValueError:
-            st.write(f"Warning: Unseen label in {column_name}. Using default value.")
             return default_value
     
-    # Default values based on training data
+    #Nilai default berdasarkan data training
     DEFAULT_SEX = sex_encoder.transform([sex_encoder.classes_[0]])[0]  # Assuming the first class is default
     DEFAULT_JAUNDICE = jaundice_encoder.transform([jaundice_encoder.classes_[0]])[0]  # Assuming the first class is default
     DEFAULT_FAMILY_ASD = family_mem_with_asd_encoder.transform([family_mem_with_asd_encoder.classes_[0]])[0]  # Assuming the first class is default
@@ -161,12 +157,12 @@ def predict_asd(input_data):
         st.write(f"Error making prediction: {e}")
         return None
 
-# Streamlit user interface
+#Tampilan di Streamlit
 st.title("ASD Screening Test")
 
 df = load_data()
 
-# Input user for 10 questions and other features
+#Inputan user
 sex = st.selectbox("Sex", ["Male", "Female"])
 age_mons = st.number_input("Age (in months)", min_value=0)
 jaundice = st.selectbox("Jaundice", ["Yes", "No"])
@@ -187,7 +183,7 @@ questions = {
     "A10": st.selectbox("Does your child show emotions when interacting with other children?", ["Yes", "No"])
 }
 
-# Convert Yes/No answers to 1/0
+#Yes/No = 1/0
 for key in questions:
     questions[key] = 1 if questions[key] == "Yes" else 0
 
