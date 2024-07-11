@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import joblib  # For saving and loading objects
+import os
 
 # Load and preprocess the data
 @st.cache_data
@@ -53,26 +54,27 @@ def build_ann(input_dim):
     model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
     return model
 
-# Initialize and train the model (Do this only once and save the model)
-df = load_data()
-X_scaled, y = preprocess_data(df)
+def train_model(X_train, y_train):
+    model = build_ann(X_train.shape[1])
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+    
+    X_train = X_train.astype('float32')
+    y_train = y_train.astype('float32')
+    
+    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
+    
+    # Save the trained model
+    model.save('asd_model.h5')
 
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-model = build_ann(X_train.shape[1])
-early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+# Initialize model only once
+if not os.path.exists('asd_model.h5'):
+    df = load_data()
+    X_scaled, y = preprocess_data(df)
 
-X_train = X_train.astype('float32')
-y_train = y_train.astype('float32')
-X_test = X_test.astype('float32')
-y_test = y_test.astype('float32')
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    train_model(X_train, y_train)
 
-# Train the model only once
-history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
-
-# Save the trained model
-model.save('asd_model.h5')
-
-# Load encoders and scaler
+# Load encoders, scaler, and model
 sex_encoder = joblib.load('sex_encoder.pkl')
 jaundice_encoder = joblib.load('jaundice_encoder.pkl')
 family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
@@ -136,11 +138,16 @@ input_data = {
 for key, answer in questions.items():
     input_data[key] = answer
 
-# Show Test Accuracy only when 'Submit' is clicked
+# Show prediction results only when 'Submit' is clicked
 if st.button("Submit"):
+    # Load data again for evaluation only if the model was trained (i.e., X_test and y_test exist)
+    df = load_data()
+    X_scaled, y = preprocess_data(df)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
     # Compute test accuracy only on 'Submit'
     test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
-    st.write(f"Test Accuracy: {test_accuracy}")
+    st.write(f"Test Accuracy: {test_accuracy:.2f}")
     
     prediction = predict_asd(input_data)
     if prediction > 0.5:
