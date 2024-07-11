@@ -128,12 +128,13 @@ def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     
     # Handle unseen labels
-    def transform_column(column_name, encoder):
+    def transform_column(column_name, value, encoder, default_value):
         try:
-            return encoder.transform(input_data[column_name])
-        except ValueError as e:
-            st.write(f"Error: {e}. Using default value for {column_name}.")
-            return [encoder.transform([encoder.classes_[0]])[0]]  # default value
+            return encoder.transform([value])[0]
+        except ValueError:
+            st.write(f"Warning: Unseen label in {column_name}: {value}. Using default value.")
+            return default_value
+
     
     input_data["Sex"] = transform_column("Sex", sex_encoder)
     input_data["Jaundice"] = transform_column("Jaundice", jaundice_encoder)
