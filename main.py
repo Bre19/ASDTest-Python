@@ -104,25 +104,33 @@ if submit_button:
         columns=["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "Age_Mons", "Sex", "Ethnicity", "Jaundice", "Family_mem_with_ASD", "Who completed the test"]
     )
 
-    # Encode input data
-    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-    input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+    # Check if input values are valid
+    if input_data["Sex"].iloc[0] not in sex_encoder.classes_:
+        st.error("Invalid input for Sex")
+    elif input_data["Jaundice"].iloc[0] not in jaundice_encoder.classes_:
+        st.error("Invalid input for Jaundice")
+    elif input_data["Family_mem_with_ASD"].iloc[0] not in family_mem_with_asd_encoder.classes_:
+        st.error("Invalid input for Family_mem_with_ASD")
+    else:
+        # Encode input data
+        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+        input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
 
-    # Handle missing columns due to one-hot encoding
-    missing_cols = set(X.columns) - set(input_data.columns)
-    for col in missing_cols:
-        input_data[col] = 0
+        # Handle missing columns due to one-hot encoding
+        missing_cols = set(X.columns) - set(input_data.columns)
+        for col in missing_cols:
+            input_data[col] = 0
 
-    input_data = input_data[X.columns]
+        input_data = input_data[X.columns]
 
-    # Scale input data
-    input_data_scaled = scaler.transform(input_data)
+        # Scale input data
+        input_data_scaled = scaler.transform(input_data)
 
-    # Predict
-    prediction_prob = model.predict(input_data_scaled)
-    prediction = (prediction_prob > 0.5).astype(int)
+        # Predict
+        prediction_prob = model.predict(input_data_scaled)
+        prediction = (prediction_prob > 0.5).astype(int)
 
-    result = "Positive for ASD" if prediction[0] == 1 else "Negative for ASD"
-    st.write(f"Prediction: {result}")
+        result = "Positive for ASD" if prediction[0] == 1 else "Negative for ASD"
+        st.write(f"Prediction: {result}")
