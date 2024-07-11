@@ -161,7 +161,7 @@ def predict_asd(input_data):
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
     # Reindex to match training data columns
-    all_columns = list(df.columns.difference(["Class/ASD Traits "]))  # All columns except the target
+    all_columns = list(pd.get_dummies(df, columns=["Ethnicity", "Who completed the test"], drop_first=True).columns)
     input_data = input_data.reindex(columns=all_columns, fill_value=0)
     
     input_data = scaler.transform(input_data)
@@ -190,8 +190,8 @@ questions = {
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
     "A3": st.selectbox("Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)", ["Yes", "No"]),
     "A4": st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", ["Yes", "No"]),
-    "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
-    "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
+    "A5": st.selectbox("Does your child engage in play with other children?", ["Yes", "No"]),
+    "A6": st.selectbox("Does your child imitate your actions? (e.g. mimicking a gesture or action)", ["Yes", "No"]),
     "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
     "A8": st.selectbox("Does your child enjoy playing with other children?", ["Yes", "No"]),
     "A9": st.selectbox("Does your child often focus on one activity or toy for a long time?", ["Yes", "No"]),
