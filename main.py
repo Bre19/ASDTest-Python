@@ -126,9 +126,23 @@ def predict_asd(input_data):
     
     input_data = pd.DataFrame([input_data])
     
-    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    try:
+        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+    except ValueError:
+        st.write(f"Error: Unseen label in Sex: {input_data['Sex'].values[0]}")
+        return None
+    
+    try:
+        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+    except ValueError:
+        st.write(f"Error: Unseen label in Jaundice: {input_data['Jaundice'].values[0]}")
+        return None
+    
+    try:
+        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    except ValueError:
+        st.write(f"Error: Unseen label in Family_mem_with_ASD: {input_data['Family_mem_with_ASD'].values[0]}")
+        return None
     
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
@@ -170,26 +184,27 @@ questions = {
     "A7": st.selectbox("Does your child respond to your distress (e.g. by bringing a favorite toy, hugging)", ["Yes", "No"]),
     "A8": st.selectbox("Does your child show concern if you are upset or sad?", ["Yes", "No"]),
     "A9": st.selectbox("Does your child respond to your smile?", ["Yes", "No"]),
-    "A10": st.selectbox("Does your child show emotions when interacting with other children?", ["Yes", "No"]),
+    "A10": st.selectbox("Does your child show emotions when interacting with other children?", ["Yes", "No"])
 }
 
-if st.button("Predict"):
-    input_data = {
-        "Sex": sex,
-        "Age": age_mons,
-        "Jaundice": jaundice,
-        "Family_mem_with_ASD": family_asd,
-        "Ethnicity": ethnicity,
-        "Who completed the test": who_completed_test,
-        **{f"A{i+1}": 1 if v == "Yes" else 0 for i, (k, v) in enumerate(questions.items())},
-    }
-    
+# Convert Yes/No answers to 1/0
+for key in questions:
+    questions[key] = 1 if questions[key] == "Yes" else 0
+
+input_data = {
+    "Sex": sex,
+    "Age_Mons": age_mons,
+    "Jaundice": jaundice,
+    "Family_mem_with_ASD": family_asd,
+    "Ethnicity": ethnicity,
+    "Who completed the test": who_completed_test
+}
+input_data.update(questions)
+
+if st.button("Predict ASD"):
     load_saved_objects()
-    
-    prediction = predict_asd(input_data)
-    
-    if prediction is not None:
-        if prediction > 0.5:
-            st.write(f"The model predicts that the individual is likely to have ASD with a probability of {prediction:.2f}")
-        else:
-            st.write(f"The model predicts that the individual is unlikely to have ASD with a probability of {prediction:.2f}")
+    result = predict_asd(input_data)
+    if result is not None:
+        st.write("ASD Prediction: ", "Positive" if result >= 0.5 else "Negative")
+    else:
+        st.write("Failed to make prediction.")
