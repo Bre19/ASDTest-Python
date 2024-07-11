@@ -16,6 +16,7 @@ scaler = None
 model = None
 X_test = None
 y_test = None
+feature_columns = None  # To store feature column names
 
 # Function to load data from URL
 @st.cache_data
@@ -28,7 +29,7 @@ def load_data():
 def preprocess_data(df):
     df.replace({"Yes": 1, "No": 0}, inplace=True)
     
-    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns
     
     # Fit label encoders
     sex_encoder = LabelEncoder()
@@ -39,8 +40,8 @@ def preprocess_data(df):
     jaundice_encoder.fit(df["Jaundice"])
     family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
     
-    X = df.drop("Class/ASD Traits ", axis=1)  # Drop target column
-    y = df["Class/ASD Traits "]  # Target column
+    X = df.drop("Class/ASD Traits ", axis=1)
+    y = df["Class/ASD Traits "]
     
     X["Sex"] = sex_encoder.transform(X["Sex"])
     X["Jaundice"] = jaundice_encoder.transform(X["Jaundice"])
@@ -48,14 +49,17 @@ def preprocess_data(df):
     
     X = pd.get_dummies(X, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
+    feature_columns = X.columns.tolist()  # Save feature columns for later
+    
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Save the encoders and scaler
+    # Save the encoders, scaler, and feature columns
     joblib.dump(sex_encoder, 'sex_encoder.pkl')
     joblib.dump(jaundice_encoder, 'jaundice_encoder.pkl')
     joblib.dump(family_mem_with_asd_encoder, 'family_mem_with_asd_encoder.pkl')
     joblib.dump(scaler, 'scaler.pkl')
+    joblib.dump(feature_columns, 'feature_columns.pkl')
     
     return X_scaled, y
 
@@ -91,12 +95,13 @@ def prepare_model_and_data():
 
 # Load saved objects
 def load_saved_objects():
-    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test, feature_columns
     try:
         sex_encoder = joblib.load('sex_encoder.pkl')
         jaundice_encoder = joblib.load('jaundice_encoder.pkl')
         family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
         scaler = joblib.load('scaler.pkl')
+        feature_columns = joblib.load('feature_columns.pkl')
         model = load_model('asd_model.h5')
         X_test = joblib.load('X_test.pkl')
         y_test = joblib.load('y_test.pkl')
@@ -125,16 +130,11 @@ def predict_asd(input_data):
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     
-    # Ensure input data has the same columns as the training data
+    # Transform categorical features with dummy variables
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    # Reindex to match training data columns
-    all_columns = list(df.columns.difference(["Class/ASD Traits "]))  # All columns except the target
-    # Handle missing columns in input_data
-    for col in all_columns:
-        if col not in input_data.columns:
-            input_data[col] = 0
-    input_data = input_data[all_columns]  # Reorder columns to match the training data
+    # Ensure input data has the same columns as the training data
+    input_data = input_data.reindex(columns=feature_columns, fill_value=0)
     
     input_data = scaler.transform(input_data)
     input_data = input_data.astype('float32')
@@ -164,30 +164,28 @@ questions = {
     "A4": st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", ["Yes", "No"]),
     "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
     "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
-    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging)", ["Yes", "No"]),
+    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
     "A8": st.selectbox("Does your child notice if you or someone else are upset or angry?", ["Yes", "No"]),
     "A9": st.selectbox("Does your child respond to their name being called?", ["Yes", "No"]),
     "A10": st.selectbox("Does your child follow simple instructions?", ["Yes", "No"])
 }
 
-# Combine input features into a single dictionary
-input_features = {
+# Combine input features
+input_data = {
     "Sex": sex,
     "Age": age_mons,
     "Jaundice": jaundice,
     "Family_mem_with_ASD": family_asd,
     "Ethnicity": ethnicity,
-    "Who completed the test": who_completed_test
+    "Who completed the test": who_completed_test,
+    **questions
 }
 
-input_features.update(questions)  # Add the answers to the questions
-
-# Preprocess and make prediction
+# Predict ASD risk
 if st.button("Predict"):
     load_saved_objects()
     try:
-        prediction = predict_asd(input_features)
-        result = "ASD Likely" if prediction > 0.5 else "ASD Unlikely"
-        st.write(f"Prediction: {result} with probability {prediction:.2f}")
+        prediction = predict_asd(input_data)
+        st.write(f"Probability of ASD: {prediction:.2f}")
     except Exception as e:
         st.write(f"Error: {e}")
