@@ -18,6 +18,14 @@ model_path = 'asd_model.h5'
 X_test_path = 'X_test.pkl'
 y_test_path = 'y_test.pkl'
 
+# Global variables for encoders and model
+sex_encoder = None
+jaundice_encoder = None
+family_mem_with_asd_encoder = None
+scaler = None
+feature_columns = None
+model = None
+
 # Function to load data from URL
 @st.cache_data
 def load_data():
@@ -192,19 +200,15 @@ if st.button("Predict"):
         "Family_mem_with_ASD": family_asd,
         "Ethnicity": ethnicity,
         "Who completed the test": who_completed_test,
-        **questions
+        **{f"A{i+1}": 1 if v == "Yes" else 0 for i, (k, v) in enumerate(questions.items())},
     }
     
-    # Load saved objects (including model and encoders)
     load_saved_objects()
     
-    # Predict ASD
-    result = predict_asd(input_data)
+    prediction = predict_asd(input_data)
     
-    if result is not None:
-        if result > 0.5:
-            st.write("The model predicts that ASD traits are likely present.")
+    if prediction is not None:
+        if prediction > 0.5:
+            st.write(f"The model predicts that the individual is likely to have ASD with a probability of {prediction:.2f}")
         else:
-            st.write("The model predicts that ASD traits are unlikely present.")
-    else:
-        st.write("An error occurred during prediction.")
+            st.write(f"The model predicts that the individual is unlikely to have ASD with a probability of {prediction:.2f}")
