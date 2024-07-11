@@ -1,12 +1,11 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.models import Sequential, save_model, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import joblib
-import os
 
 # Global variables for data and model
 df = None
@@ -41,7 +40,7 @@ def preprocess_data(df):
     family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
     
     X = df.drop("Class/ASD Traits ", axis=1)  # Drop target column
-    y = df["Class/ASD Traits "]
+    y = df["Class/ASD Traits "]  # Target column
     
     X["Sex"] = sex_encoder.transform(X["Sex"])
     X["Jaundice"] = jaundice_encoder.transform(X["Jaundice"])
@@ -94,53 +93,22 @@ def prepare_model_and_data():
 def load_saved_objects():
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test
     try:
-        if os.path.exists('sex_encoder.pkl'):
-            sex_encoder = joblib.load('sex_encoder.pkl')
-        else:
-            raise FileNotFoundError("sex_encoder.pkl")
-        
-        if os.path.exists('jaundice_encoder.pkl'):
-            jaundice_encoder = joblib.load('jaundice_encoder.pkl')
-        else:
-            raise FileNotFoundError("jaundice_encoder.pkl")
-        
-        if os.path.exists('family_mem_with_asd_encoder.pkl'):
-            family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
-        else:
-            raise FileNotFoundError("family_mem_with_asd_encoder.pkl")
-        
-        if os.path.exists('scaler.pkl'):
-            scaler = joblib.load('scaler.pkl')
-        else:
-            raise FileNotFoundError("scaler.pkl")
-        
-        if os.path.exists('asd_model.h5'):
-            model = load_model('asd_model.h5')
-        else:
-            raise FileNotFoundError("asd_model.h5")
-        
-        if os.path.exists('X_test.pkl'):
-            X_test = joblib.load('X_test.pkl')
-        else:
-            raise FileNotFoundError("X_test.pkl")
-        
-        if os.path.exists('y_test.pkl'):
-            y_test = joblib.load('y_test.pkl')
-        else:
-            raise FileNotFoundError("y_test.pkl")
-        
+        sex_encoder = joblib.load('sex_encoder.pkl')
+        jaundice_encoder = joblib.load('jaundice_encoder.pkl')
+        family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
+        scaler = joblib.load('scaler.pkl')
+        model = load_model('asd_model.h5')
+        X_test = joblib.load('X_test.pkl')
+        y_test = joblib.load('y_test.pkl')
     except FileNotFoundError as e:
         st.write(f"Error loading files: {e}")
-        st.write("Training model and saving files now...")
-        prepare_model_and_data()
+        st.write("Please make sure to run the model training and saving code first.")
 
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     
     # Handle missing labels
     def handle_missing_labels(series, encoder):
-        if encoder is None:
-            raise ValueError("Encoder not loaded.")
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
     
     if 'Sex' in input_data.columns:
@@ -161,8 +129,12 @@ def predict_asd(input_data):
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
     # Reindex to match training data columns
-    all_columns = list(pd.get_dummies(df, columns=["Ethnicity", "Who completed the test"], drop_first=True).columns)
-    input_data = input_data.reindex(columns=all_columns, fill_value=0)
+    all_columns = list(df.columns.difference(["Class/ASD Traits "]))  # All columns except the target
+    # Handle missing columns in input_data
+    for col in all_columns:
+        if col not in input_data.columns:
+            input_data[col] = 0
+    input_data = input_data[all_columns]  # Reorder columns to match the training data
     
     input_data = scaler.transform(input_data)
     input_data = input_data.astype('float32')
@@ -190,38 +162,32 @@ questions = {
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
     "A3": st.selectbox("Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)", ["Yes", "No"]),
     "A4": st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", ["Yes", "No"]),
-    "A5": st.selectbox("Does your child engage in play with other children?", ["Yes", "No"]),
-    "A6": st.selectbox("Does your child imitate your actions? (e.g. mimicking a gesture or action)", ["Yes", "No"]),
-    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
-    "A8": st.selectbox("Does your child enjoy playing with other children?", ["Yes", "No"]),
-    "A9": st.selectbox("Does your child often focus on one activity or toy for a long time?", ["Yes", "No"]),
-    "A10": st.selectbox("Does your child get upset if you change the routine?", ["Yes", "No"])
+    "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
+    "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
+    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging)", ["Yes", "No"]),
+    "A8": st.selectbox("Does your child notice if you or someone else are upset or angry?", ["Yes", "No"]),
+    "A9": st.selectbox("Does your child respond to their name being called?", ["Yes", "No"]),
+    "A10": st.selectbox("Does your child follow simple instructions?", ["Yes", "No"])
 }
 
-# Convert answers to list
-answers = list(questions.values())
+# Combine input features into a single dictionary
+input_features = {
+    "Sex": sex,
+    "Age": age_mons,
+    "Jaundice": jaundice,
+    "Family_mem_with_ASD": family_asd,
+    "Ethnicity": ethnicity,
+    "Who completed the test": who_completed_test
+}
 
-if st.button("Submit"):
-    # Prepare input data
-    input_data = {
-        "Sex": sex,
-        "Age": age_mons,
-        "Jaundice": jaundice,
-        "Family_mem_with_ASD": family_asd,
-        "Ethnicity": ethnicity,
-        "Who completed the test": who_completed_test,
-        **dict(zip(questions.keys(), answers))
-    }
-    
-    # Load saved objects and make predictions
+input_features.update(questions)  # Add the answers to the questions
+
+# Preprocess and make prediction
+if st.button("Predict"):
     load_saved_objects()
-    
     try:
-        prediction = predict_asd(input_data)
-        st.write(f"Prediction score: {prediction:.2f}")
-        if prediction > 0.5:
-            st.write("The model predicts: Likely to have ASD.")
-        else:
-            st.write("The model predicts: Unlikely to have ASD.")
-    except ValueError as e:
+        prediction = predict_asd(input_features)
+        result = "ASD Likely" if prediction > 0.5 else "ASD Unlikely"
+        st.write(f"Prediction: {result} with probability {prediction:.2f}")
+    except Exception as e:
         st.write(f"Error: {e}")
