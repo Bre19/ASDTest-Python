@@ -87,6 +87,11 @@ def predict_asd(input_data):
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+    
+    # Align the columns with the training data
+    input_data = input_data.reindex(columns=df.columns.difference(["Class/ASD Traits "]), fill_value=0)
+    
+    # Apply scaling
     input_data = scaler.transform(input_data)
     
     # Ensure the input data is in the correct format
@@ -99,13 +104,16 @@ def predict_asd(input_data):
 # Streamlit user interface
 st.title("ASD Screening Test")
 
-# Collect user input
+# Collect user input for 10 questions and other features
 sex = st.selectbox("Sex", ["Male", "Female"])
 age_mons = st.number_input("Age (in months)", min_value=0)
 jaundice = st.selectbox("Jaundice", ["Yes", "No"])
 family_asd = st.selectbox("Family member with ASD", ["Yes", "No"])
 ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
 who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique())
+
+# Collect answers to 10 questions
+questions = [st.selectbox(f"Question {i+1}", ["Yes", "No"]) for i in range(10)]
 
 input_data = {
     "Sex": sex,
@@ -115,6 +123,10 @@ input_data = {
     "Ethnicity": ethnicity,
     "Who completed the test": who_completed_test
 }
+
+# Add answers to the 10 questions to the input data
+for i, answer in enumerate(questions):
+    input_data[f"Question_{i+1}"] = answer
 
 # Predict and display results
 if st.button("Submit"):
