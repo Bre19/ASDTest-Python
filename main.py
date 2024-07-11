@@ -107,10 +107,12 @@ if submit_button:
     # Map Yes/No to 1/0 for A1 to A10
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
 
-    # Encode input data
-    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    # Manually encode input data
+    input_data["Sex"] = input_data["Sex"].map({"Male": 1, "Female": 0})
+    input_data["Jaundice"] = input_data["Jaundice"].map({"Yes": 1, "No": 0})
+    input_data["Family_mem_with_ASD"] = input_data["Family_mem_with_ASD"].map({"Yes": 1, "No": 0})
+
+    # One-hot encode Ethnicity and Who completed the test
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
 
     # Handle missing columns due to one-hot encoding
