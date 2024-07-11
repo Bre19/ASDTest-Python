@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential, load_model  # pastikan load_model diimpor
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
@@ -17,7 +17,7 @@ scaler = None
 model = None
 X_test = None
 y_test = None
-feature_columns = None  # To store feature column names
+feature_columns = None
 
 # Function to load data from URL
 @st.cache_data
@@ -50,7 +50,7 @@ def preprocess_data(df):
     
     X = pd.get_dummies(X, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    feature_columns = X.columns.tolist()  # Save feature columns for later
+    feature_columns = X.columns.tolist()
     
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
@@ -103,7 +103,7 @@ def load_saved_objects():
         family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
         scaler = joblib.load('scaler.pkl')
         feature_columns = joblib.load('feature_columns.pkl')
-        model = load_model('asd_model.h5')  # Ensure load_model is available
+        model = load_model('asd_model.h5')
         X_test = joblib.load('X_test.pkl')
         y_test = joblib.load('y_test.pkl')
     except FileNotFoundError as e:
@@ -115,10 +115,9 @@ def load_saved_objects():
         st.stop()
 
 def predict_asd(input_data):
-    # Ensure that all global objects are initialized
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns, model
     
-    # Check if all necessary objects are loaded
+    # Ensure that all global objects are initialized
     if sex_encoder is None or jaundice_encoder is None or family_mem_with_asd_encoder is None or scaler is None or model is None or feature_columns is None:
         st.write("Error: Model or encoders not properly loaded.")
         return None
@@ -127,7 +126,7 @@ def predict_asd(input_data):
     
     # Handle missing labels
     def handle_missing_labels(series, encoder):
-        if encoder is None or not encoder.classes_.size:  # Check if encoder is None
+        if encoder is None or not encoder.classes_.size:
             return series
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
     
@@ -156,9 +155,12 @@ def predict_asd(input_data):
     # Ensure input data has the same columns as the training data
     input_data = input_data.reindex(columns=feature_columns, fill_value=0)
     
-    input_data = scaler.transform(input_data)
+    # Convert to float32 before scaling
     input_data = input_data.astype('float32')
     
+    input_data = scaler.transform(input_data)
+    
+    # Predict
     prediction = model.predict(input_data)
     return prediction[0][0]
 
@@ -181,10 +183,10 @@ questions = {
     "A1": st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"]),
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
     "A3": st.selectbox("Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)", ["Yes", "No"]),
-    "A4": st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", ["Yes", "No"]),
-    "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
-    "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
-    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. bringing a favorite toy, hugging)", ["Yes", "No"]),
+    "A4": st.selectbox("Does your child show interest in other people or in playing with other children?", ["Yes", "No"]),
+    "A5": st.selectbox("Does your child smile in response to your smile?", ["Yes", "No"]),
+    "A6": st.selectbox("Does your child bring a favorite toy to show to you?", ["Yes", "No"]),
+    "A7": st.selectbox("Does your child respond to your distress (e.g. by bringing a favorite toy, hugging)", ["Yes", "No"]),
     "A8": st.selectbox("Does your child show concern if you are upset or sad?", ["Yes", "No"]),
     "A9": st.selectbox("Does your child respond to your smile?", ["Yes", "No"]),
     "A10": st.selectbox("Does your child show emotions when interacting with other children?", ["Yes", "No"]),
