@@ -109,6 +109,8 @@ def predict_asd(input_data):
     
     # Handle missing labels
     def handle_missing_labels(series, encoder):
+        if encoder is None:
+            raise ValueError("Encoder not loaded.")
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
     
     if 'Sex' in input_data.columns:
