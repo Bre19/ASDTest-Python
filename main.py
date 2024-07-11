@@ -1,38 +1,34 @@
 import pandas as pd
+import joblib
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
-import joblib
 import os
 
-# Global variables for data and model
-df = None
-sex_encoder = None
-jaundice_encoder = None
-family_mem_with_asd_encoder = None
-scaler = None
-model = None
-X_test = None
-y_test = None
-feature_columns = None
+# Paths for saved files
+sex_encoder_path = 'sex_encoder.pkl'
+jaundice_encoder_path = 'jaundice_encoder.pkl'
+family_mem_with_asd_encoder_path = 'family_mem_with_asd_encoder.pkl'
+scaler_path = 'scaler.pkl'
+feature_columns_path = 'feature_columns.pkl'
+model_path = 'asd_model.h5'
+X_test_path = 'X_test.pkl'
+y_test_path = 'y_test.pkl'
 
 # Function to load data from URL
 @st.cache_data
 def load_data():
-    global df
     url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
     df = pd.read_csv(url)
     return df
 
-def preprocess_data(df):
+def preprocess_and_train_model(df):
     df.replace({"Yes": 1, "No": 0}, inplace=True)
     
-    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns
-    
-    # Fit label encoders
+    # Create and save encoders
     sex_encoder = LabelEncoder()
     jaundice_encoder = LabelEncoder()
     family_mem_with_asd_encoder = LabelEncoder()
@@ -40,6 +36,10 @@ def preprocess_data(df):
     sex_encoder.fit(df["Sex"])
     jaundice_encoder.fit(df["Jaundice"])
     family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
+    
+    joblib.dump(sex_encoder, sex_encoder_path)
+    joblib.dump(jaundice_encoder, jaundice_encoder_path)
+    joblib.dump(family_mem_with_asd_encoder, family_mem_with_asd_encoder_path)
     
     X = df.drop("Class/ASD Traits ", axis=1)
     y = df["Class/ASD Traits "]
@@ -50,81 +50,77 @@ def preprocess_data(df):
     
     X = pd.get_dummies(X, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    feature_columns = X.columns.tolist()
-    
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Save the encoders, scaler, and feature columns
-    joblib.dump(sex_encoder, 'sex_encoder.pkl')
-    joblib.dump(jaundice_encoder, 'jaundice_encoder.pkl')
-    joblib.dump(family_mem_with_asd_encoder, 'family_mem_with_asd_encoder.pkl')
-    joblib.dump(scaler, 'scaler.pkl')
-    joblib.dump(feature_columns, 'feature_columns.pkl')
+    # Save the scaler and feature columns
+    joblib.dump(scaler, scaler_path)
+    joblib.dump(X.columns.tolist(), feature_columns_path)
     
-    return X_scaled, y
+    # Train the model
+    def build_ann(input_dim):
+        model = Sequential()
+        model.add(Dense(64, activation="relu", input_dim=input_dim))
+        model.add(Dense(64, activation="relu"))
+        model.add(Dense(1, activation="sigmoid"))
+        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        return model
 
-def build_ann(input_dim):
-    model = Sequential()
-    model.add(Dense(64, activation="relu", input_dim=input_dim))
-    model.add(Dense(64, activation="relu"))
-    model.add(Dense(1, activation="sigmoid"))
-    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-    return model
+    def train_model(X_train, y_train):
+        model = build_ann(X_train.shape[1])
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+        
+        X_train = X_train.astype('float32')
+        y_train = y_train.astype('float32')
+        
+        model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
+        
+        # Save the trained model
+        model.save(model_path)
 
-def train_model(X_train, y_train):
-    global model
-    model = build_ann(X_train.shape[1])
-    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-    
-    X_train = X_train.astype('float32')
-    y_train = y_train.astype('float32')
-    
-    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
-    
-    # Save the trained model
-    model.save('asd_model.h5')
-
-def prepare_model_and_data():
-    global df, X_test, y_test
-    X_scaled, y = preprocess_data(df)
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
     train_model(X_train, y_train)
-    # Save X_test and y_test for later use
-    joblib.dump(X_test, 'X_test.pkl')
-    joblib.dump(y_test, 'y_test.pkl')
+    
+    joblib.dump(X_test, X_test_path)
+    joblib.dump(y_test, y_test_path)
 
-# Load saved objects
 def load_saved_objects():
-    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test, feature_columns
-    try:
-        sex_encoder = joblib.load('sex_encoder.pkl')
-        jaundice_encoder = joblib.load('jaundice_encoder.pkl')
-        family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
-        scaler = joblib.load('scaler.pkl')
-        feature_columns = joblib.load('feature_columns.pkl')
-        model = load_model('asd_model.h5')
-        X_test = joblib.load('X_test.pkl')
-        y_test = joblib.load('y_test.pkl')
-    except FileNotFoundError as e:
-        st.write(f"Error loading files: {e}")
-        st.write("Please make sure to run the model training and saving code first.")
-        st.stop()  # Stop execution if files are missing
-    except Exception as e:
-        st.write(f"An unexpected error occurred: {e}")
-        st.stop()
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns, model
+    
+    if os.path.exists(sex_encoder_path):
+        sex_encoder = joblib.load(sex_encoder_path)
+    else:
+        st.write("Encoder file not found. Training model...")
+        df = load_data()
+        preprocess_and_train_model(df)
+        st.write("Model trained and saved.")
+        return
+    
+    if os.path.exists(jaundice_encoder_path):
+        jaundice_encoder = joblib.load(jaundice_encoder_path)
+    if os.path.exists(family_mem_with_asd_encoder_path):
+        family_mem_with_asd_encoder = joblib.load(family_mem_with_asd_encoder_path)
+    if os.path.exists(scaler_path):
+        scaler = joblib.load(scaler_path)
+    if os.path.exists(feature_columns_path):
+        feature_columns = joblib.load(feature_columns_path)
+    if os.path.exists(model_path):
+        model = load_model(model_path)
+    else:
+        st.write("Model file not found. Training model...")
+        df = load_data()
+        preprocess_and_train_model(df)
+        st.write("Model trained and saved.")
 
 def predict_asd(input_data):
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns, model
     
-    # Ensure that all global objects are initialized
     if sex_encoder is None or jaundice_encoder is None or family_mem_with_asd_encoder is None or scaler is None or model is None or feature_columns is None:
         st.write("Error: Model or encoders not properly loaded.")
         return None
     
     input_data = pd.DataFrame([input_data])
     
-    # Handle missing labels
     def handle_missing_labels(series, encoder):
         if encoder is None or not encoder.classes_.size:
             return series
@@ -139,44 +135,22 @@ def predict_asd(input_data):
     if 'Family_mem_with_ASD' in input_data.columns:
         input_data["Family_mem_with_ASD"] = handle_missing_labels(input_data["Family_mem_with_ASD"], family_mem_with_asd_encoder)
     
-    # Transform categorical features
-    if sex_encoder is not None:
-        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    
-    if jaundice_encoder is not None:
-        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    
-    if family_mem_with_asd_encoder is not None:
-        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-    
-    # Transform categorical features with dummy variables
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    # Ensure input data has the same columns as the training data
     input_data = input_data.reindex(columns=feature_columns, fill_value=0)
     
-    # Debugging: Check the data types and values
-    st.write("Input Data Types:")
-    st.write(input_data.dtypes)
-    
-    st.write("Input Data Sample:")
-    st.write(input_data.head())
-    
-    # Convert to float32 before scaling
     try:
         input_data = input_data.astype('float32')
     except ValueError as e:
         st.write(f"Error converting data to float32: {e}")
         return None
     
-    # Transform input data using the scaler
     try:
         input_data = scaler.transform(input_data)
     except Exception as e:
         st.write(f"Error scaling data: {e}")
         return None
     
-    # Predict
     try:
         prediction = model.predict(input_data)
         return prediction[0][0]
@@ -187,7 +161,6 @@ def predict_asd(input_data):
 # Streamlit user interface
 st.title("ASD Screening Test")
 
-# Load data initially
 df = load_data()
 
 # Input user for 10 questions and other features
@@ -198,7 +171,6 @@ family_asd = st.selectbox("Family member with ASD", ["Yes", "No"])
 ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique() if df is not None else [])
 who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique() if df is not None else [])
 
-# Collect answers to 10 questions
 questions = {
     "A1": st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"]),
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
@@ -213,7 +185,6 @@ questions = {
 }
 
 if st.button("Predict"):
-    # Prepare input data
     input_data = {
         "Sex": sex,
         "Age": age_mons,
@@ -230,7 +201,6 @@ if st.button("Predict"):
     # Predict ASD
     result = predict_asd(input_data)
     
-    # Show result
     if result is not None:
         if result > 0.5:
             st.write("The model predicts that ASD traits are likely present.")
