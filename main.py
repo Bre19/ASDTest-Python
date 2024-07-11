@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import joblib
+import os
 
 # Global variables for data and model
 df = None
@@ -108,8 +109,17 @@ def load_saved_objects():
     except FileNotFoundError as e:
         st.write(f"Error loading files: {e}")
         st.write("Please make sure to run the model training and saving code first.")
+        st.stop()  # Stop execution if files are missing
 
 def predict_asd(input_data):
+    # Ensure that all global objects are initialized
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns, model
+    
+    # Check if all necessary objects are loaded
+    if sex_encoder is None or jaundice_encoder is None or family_mem_with_asd_encoder is None or scaler is None or model is None or feature_columns is None:
+        st.write("Error: Model or encoders not properly loaded.")
+        return None
+    
     input_data = pd.DataFrame([input_data])
     
     # Handle missing labels
@@ -193,6 +203,7 @@ if st.button("Predict"):
     load_saved_objects()
     try:
         prediction = predict_asd(input_data)
-        st.write(f"Probability of ASD: {prediction:.2f}")
+        if prediction is not None:
+            st.write(f"Probability of ASD: {prediction:.2f}")
     except Exception as e:
         st.write(f"Error: {e}")
