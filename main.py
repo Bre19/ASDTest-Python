@@ -1,11 +1,11 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.models import Sequential, save_model, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
-import joblib  # For saving and loading objects
+import joblib
 
 # Global variables for data and model
 df = None
@@ -92,13 +92,17 @@ def prepare_model_and_data():
 # Load saved objects
 def load_saved_objects():
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test
-    sex_encoder = joblib.load('sex_encoder.pkl')
-    jaundice_encoder = joblib.load('jaundice_encoder.pkl')
-    family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
-    scaler = joblib.load('scaler.pkl')
-    model = load_model('asd_model.h5')
-    X_test = joblib.load('X_test.pkl')
-    y_test = joblib.load('y_test.pkl')
+    try:
+        sex_encoder = joblib.load('sex_encoder.pkl')
+        jaundice_encoder = joblib.load('jaundice_encoder.pkl')
+        family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
+        scaler = joblib.load('scaler.pkl')
+        model = load_model('asd_model.h5')
+        X_test = joblib.load('X_test.pkl')
+        y_test = joblib.load('y_test.pkl')
+    except FileNotFoundError as e:
+        st.write(f"Error loading files: {e}")
+        st.write("Please make sure to run the model training and saving code first.")
 
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
