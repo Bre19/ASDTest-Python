@@ -110,6 +110,9 @@ def load_saved_objects():
         st.write(f"Error loading files: {e}")
         st.write("Please make sure to run the model training and saving code first.")
         st.stop()  # Stop execution if files are missing
+    except Exception as e:
+        st.write(f"An unexpected error occurred: {e}")
+        st.stop()
 
 def predict_asd(input_data):
     # Ensure that all global objects are initialized
