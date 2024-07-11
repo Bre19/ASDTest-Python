@@ -39,7 +39,7 @@ def preprocess_data(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    return X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder
+    return X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, X.columns
 
 # Fungsi untuk membangun model ANN
 def build_ann(input_dim):
@@ -54,7 +54,7 @@ def build_ann(input_dim):
 st.title("ASD Screening Test")
 
 df = load_data()
-X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
+X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, feature_columns = preprocess_data(df)
 
 # Split data
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
@@ -104,33 +104,28 @@ if submit_button:
         columns=["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "Age_Mons", "Sex", "Ethnicity", "Jaundice", "Family_mem_with_ASD", "Who completed the test"]
     )
 
-    # Check if input values are valid
-    if input_data["Sex"].iloc[0] not in sex_encoder.classes_:
-        st.error("Invalid input for Sex")
-    elif input_data["Jaundice"].iloc[0] not in jaundice_encoder.classes_:
-        st.error("Invalid input for Jaundice")
-    elif input_data["Family_mem_with_ASD"].iloc[0] not in family_mem_with_asd_encoder.classes_:
-        st.error("Invalid input for Family_mem_with_ASD")
-    else:
-        # Encode input data
-        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-        input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+    # Map Yes/No to 1/0 for A1 to A10
+    input_data.replace({"Yes": 1, "No": 0}, inplace=True)
 
-        # Handle missing columns due to one-hot encoding
-        missing_cols = set(X.columns) - set(input_data.columns)
-        for col in missing_cols:
-            input_data[col] = 0
+    # Encode input data
+    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
 
-        input_data = input_data[X.columns]
+    # Handle missing columns due to one-hot encoding
+    missing_cols = set(feature_columns) - set(input_data.columns)
+    for col in missing_cols:
+        input_data[col] = 0
 
-        # Scale input data
-        input_data_scaled = scaler.transform(input_data)
+    input_data = input_data[feature_columns]
 
-        # Predict
-        prediction_prob = model.predict(input_data_scaled)
-        prediction = (prediction_prob > 0.5).astype(int)
+    # Scale input data
+    input_data_scaled = scaler.transform(input_data)
 
-        result = "Positive for ASD" if prediction[0] == 1 else "Negative for ASD"
-        st.write(f"Prediction: {result}")
+    # Predict
+    prediction_prob = model.predict(input_data_scaled)
+    prediction = (prediction_prob > 0.5).astype(int)
+
+    result = "Positive for ASD" if prediction[0] == 1 else "Negative for ASD"
+    st.write(f"Prediction: {result}")
