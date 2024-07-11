@@ -7,7 +7,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 
 # Load and preprocess the data
-@st.cache
+@st.cache_data
 def load_data():
     url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
     data = pd.read_csv(url)
@@ -63,6 +63,13 @@ def build_ann(input_dim):
 # Initialize and train the model
 model = build_ann(X_train.shape[1])
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+# Ensure the data is in the correct format
+X_train = X_train.astype('float32')
+y_train = y_train.astype('float32')
+X_test = X_test.astype('float32')
+y_test = y_test.astype('float32')
+
 history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
 
 # Evaluate the model
@@ -81,6 +88,9 @@ def predict_asd(input_data):
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     input_data = scaler.transform(input_data)
+    
+    # Ensure the input data is in the correct format
+    input_data = input_data.astype('float32')
     
     # Make prediction
     prediction = model.predict(input_data)
