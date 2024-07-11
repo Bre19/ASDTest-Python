@@ -37,6 +37,7 @@ def preprocess_and_train_model(df):
     df.replace({"Yes": 1, "No": 0}, inplace=True)
     
     # Create and save encoders
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler
     sex_encoder = LabelEncoder()
     jaundice_encoder = LabelEncoder()
     family_mem_with_asd_encoder = LabelEncoder()
@@ -126,23 +127,17 @@ def predict_asd(input_data):
     
     input_data = pd.DataFrame([input_data])
     
-    try:
-        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    except ValueError:
-        st.write(f"Error: Unseen label in Sex: {input_data['Sex'].values[0]}")
-        return None
+    # Handle unseen labels
+    def transform_column(column_name, encoder):
+        try:
+            return encoder.transform(input_data[column_name])
+        except ValueError as e:
+            st.write(f"Error: {e}. Using default value for {column_name}.")
+            return [encoder.transform([encoder.classes_[0]])[0]]  # default value
     
-    try:
-        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    except ValueError:
-        st.write(f"Error: Unseen label in Jaundice: {input_data['Jaundice'].values[0]}")
-        return None
-    
-    try:
-        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-    except ValueError:
-        st.write(f"Error: Unseen label in Family_mem_with_ASD: {input_data['Family_mem_with_ASD'].values[0]}")
-        return None
+    input_data["Sex"] = transform_column("Sex", sex_encoder)
+    input_data["Jaundice"] = transform_column("Jaundice", jaundice_encoder)
+    input_data["Family_mem_with_ASD"] = transform_column("Family_mem_with_ASD", family_mem_with_asd_encoder)
     
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
