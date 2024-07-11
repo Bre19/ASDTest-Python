@@ -114,7 +114,7 @@ def predict_asd(input_data):
     
     # Handle missing labels
     def handle_missing_labels(series, encoder):
-        if not encoder.classes_.size:  # No classes in encoder
+        if encoder is None or not encoder.classes_.size:  # Check if encoder is None
             return series
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
     
@@ -128,9 +128,14 @@ def predict_asd(input_data):
         input_data["Family_mem_with_ASD"] = handle_missing_labels(input_data["Family_mem_with_ASD"], family_mem_with_asd_encoder)
     
     # Transform categorical features
-    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    if sex_encoder is not None:
+        input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+    
+    if jaundice_encoder is not None:
+        input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+    
+    if family_mem_with_asd_encoder is not None:
+        input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     
     # Transform categorical features with dummy variables
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
