@@ -128,17 +128,21 @@ def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     
     # Handle unseen labels
-    def transform_column(column_name, value, encoder, default_value):
+    def transform_column(column_name, encoder, default_value):
         try:
-            return encoder.transform([value])[0]
+            return encoder.transform(input_data[column_name])[0]
         except ValueError:
-            st.write(f"Warning: Unseen label in {column_name}: {value}. Using default value.")
+            st.write(f"Warning: Unseen label in {column_name}. Using default value.")
             return default_value
-
     
-    input_data["Sex"] = transform_column("Sex", sex_encoder)
-    input_data["Jaundice"] = transform_column("Jaundice", jaundice_encoder)
-    input_data["Family_mem_with_ASD"] = transform_column("Family_mem_with_ASD", family_mem_with_asd_encoder)
+    # Default values based on training data
+    DEFAULT_SEX = sex_encoder.transform([sex_encoder.classes_[0]])[0]  # Assuming the first class is default
+    DEFAULT_JAUNDICE = jaundice_encoder.transform([jaundice_encoder.classes_[0]])[0]  # Assuming the first class is default
+    DEFAULT_FAMILY_ASD = family_mem_with_asd_encoder.transform([family_mem_with_asd_encoder.classes_[0]])[0]  # Assuming the first class is default
+
+    input_data["Sex"] = transform_column("Sex", sex_encoder, DEFAULT_SEX)
+    input_data["Jaundice"] = transform_column("Jaundice", jaundice_encoder, DEFAULT_JAUNDICE)
+    input_data["Family_mem_with_ASD"] = transform_column("Family_mem_with_ASD", family_mem_with_asd_encoder, DEFAULT_FAMILY_ASD)
     
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
@@ -187,16 +191,11 @@ questions = {
 for key in questions:
     questions[key] = 1 if questions[key] == "Yes" else 0
 
-# Set default values for unseen labels
-DEFAULT_SEX = sex_encoder.transform(['Female'])[0]  # Assuming 'Female' is the default value
-DEFAULT_JAUNDICE = jaundice_encoder.transform(['No'])[0]  # Assuming 'No' is the default value
-DEFAULT_FAMILY_ASD = family_mem_with_asd_encoder.transform(['No'])[0]  # Assuming 'No' is the default value
-
 input_data = {
-    "Sex": transform_column("Sex", sex, sex_encoder, DEFAULT_SEX),
+    "Sex": sex,
     "Age_Mons": age_mons,
-    "Jaundice": transform_column("Jaundice", jaundice, jaundice_encoder, DEFAULT_JAUNDICE),
-    "Family_mem_with_ASD": transform_column("Family_mem_with_ASD", family_asd, family_mem_with_asd_encoder, DEFAULT_FAMILY_ASD),
+    "Jaundice": jaundice,
+    "Family_mem_with_ASD": family_asd,
     "Ethnicity": ethnicity,
     "Who completed the test": who_completed_test
 }
