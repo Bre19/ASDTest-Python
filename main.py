@@ -113,7 +113,18 @@ ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
 who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique())
 
 # Collect answers to 10 questions
-questions = [st.selectbox(f"Question {i+1}", ["Yes", "No"]) for i in range(10)]
+questions = {
+    "A1": st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"]),
+    "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
+    "A3": st.selectbox("Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)", ["Yes", "No"]),
+    "A4": st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", ["Yes", "No"]),
+    "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
+    "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
+    "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
+    "A8": st.selectbox("Would you describe your child’s first words as:", ["Yes", "No"]),
+    "A9": st.selectbox("Does your child use simple gestures? (e.g. wave goodbye)", ["Yes", "No"]),
+    "A10": st.selectbox("Does your child stare at nothing with no apparent purpose?", ["Yes", "No"]),
+}
 
 input_data = {
     "Sex": sex,
@@ -125,10 +136,10 @@ input_data = {
 }
 
 # Add answers to the 10 questions to the input data
-for i, answer in enumerate(questions):
-    input_data[f"Question_{i+1}"] = answer
+for key, answer in questions.items():
+    input_data[key] = answer
 
-# Predict and display results
+# Predict and display results after clicking submit
 if st.button("Submit"):
     prediction = predict_asd(input_data)
     if prediction > 0.5:
