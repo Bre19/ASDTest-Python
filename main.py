@@ -12,7 +12,8 @@ from tensorflow.keras.callbacks import EarlyStopping
 # Fungsi untuk memuat data
 @st.cache_data
 def load_data():
-    data = pd.read_csv("ASDTest-Python/data/Toddler Autism dataset July 2018.csv")
+    url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
+    data = pd.read_csv(url)
     return data
 
 # Fungsi untuk melakukan preprocessing data
