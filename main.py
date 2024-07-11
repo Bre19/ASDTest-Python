@@ -78,9 +78,6 @@ def preprocess_and_train_model(df):
         model = build_ann(X_train.shape[1])
         early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
         
-        X_train = X_train.astype('float32')
-        y_train = y_train.astype('float32')
-        
         model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
         
         # Save the trained model
@@ -129,29 +126,13 @@ def predict_asd(input_data):
     
     input_data = pd.DataFrame([input_data])
     
-    def handle_missing_labels(series, encoder):
-        if encoder is None or not encoder.classes_.size:
-            return series
-        return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
-    
-    if 'Sex' in input_data.columns:
-        input_data["Sex"] = handle_missing_labels(input_data["Sex"], sex_encoder)
-    
-    if 'Jaundice' in input_data.columns:
-        input_data["Jaundice"] = handle_missing_labels(input_data["Jaundice"], jaundice_encoder)
-    
-    if 'Family_mem_with_ASD' in input_data.columns:
-        input_data["Family_mem_with_ASD"] = handle_missing_labels(input_data["Family_mem_with_ASD"], family_mem_with_asd_encoder)
+    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
     input_data = input_data.reindex(columns=feature_columns, fill_value=0)
-    
-    try:
-        input_data = input_data.astype('float32')
-    except ValueError as e:
-        st.write(f"Error converting data to float32: {e}")
-        return None
     
     try:
         input_data = scaler.transform(input_data)
