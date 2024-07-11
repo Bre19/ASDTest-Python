@@ -40,8 +40,8 @@ def preprocess_data(df):
     jaundice_encoder.fit(df["Jaundice"])
     family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
     
-    X = df.drop("Class/ASD Traits", axis=1)
-    y = df["Class/ASD Traits"]
+    X = df.drop("Class/ASD Traits ", axis=1)
+    y = df["Class/ASD Traits "]
     
     X["Sex"] = sex_encoder.transform(X["Sex"])
     X["Jaundice"] = jaundice_encoder.transform(X["Jaundice"])
