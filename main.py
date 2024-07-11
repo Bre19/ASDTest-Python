@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential, save_model, load_model
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
@@ -114,6 +114,8 @@ def predict_asd(input_data):
     
     # Handle missing labels
     def handle_missing_labels(series, encoder):
+        if not encoder.classes_.size:  # No classes in encoder
+            return series
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
     
     if 'Sex' in input_data.columns:
