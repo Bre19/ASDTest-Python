@@ -1,10 +1,14 @@
+import os
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from tensorflow.keras.models import load_model
-import streamlit as st
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.callbacks import EarlyStopping
 import joblib
+import streamlit as st
 
-# Global variables for data and model
+# Define global variables
 df = None
 sex_encoder = None
 jaundice_encoder = None
@@ -15,15 +19,70 @@ X_test = None
 y_test = None
 feature_columns = None
 
-# Function to load data from URL
-@st.cache_data
-def load_data():
-    global df
-    url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
-    df = pd.read_csv(url)
-    return df
+# Function to check if necessary files exist
+def check_and_train_model():
+    if not all(os.path.isfile(f) for f in [
+        'sex_encoder.pkl', 'jaundice_encoder.pkl', 'family_mem_with_asd_encoder.pkl',
+        'scaler.pkl', 'feature_columns.pkl', 'asd_model.h5', 'X_test.pkl', 'y_test.pkl'
+    ]):
+        st.write("Model or encoder files not found. Training the model now...")
+        # Load data and preprocess
+        url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
+        df = pd.read_csv(url)
+        X_scaled, y, feature_columns, scaler = preprocess_data(df)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+        train_model(X_train, y_train)
+        joblib.dump(X_test, 'X_test.pkl')
+        joblib.dump(y_test, 'y_test.pkl')
+        st.write("Model training complete.")
+    else:
+        st.write("Model and encoder files found. Skipping training.")
 
-# Load saved objects
+# Function to preprocess data
+def preprocess_data(df):
+    df.replace({"Yes": 1, "No": 0}, inplace=True)
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns
+    sex_encoder = LabelEncoder()
+    jaundice_encoder = LabelEncoder()
+    family_mem_with_asd_encoder = LabelEncoder()
+    sex_encoder.fit(df["Sex"])
+    jaundice_encoder.fit(df["Jaundice"])
+    family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
+    X = df.drop("Class/ASD Traits ", axis=1)
+    y = df["Class/ASD Traits "]
+    X["Sex"] = sex_encoder.transform(X["Sex"])
+    X["Jaundice"] = jaundice_encoder.transform(X["Jaundice"])
+    X["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(X["Family_mem_with_ASD"])
+    X = pd.get_dummies(X, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+    feature_columns = X.columns.tolist()
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    joblib.dump(sex_encoder, 'sex_encoder.pkl')
+    joblib.dump(jaundice_encoder, 'jaundice_encoder.pkl')
+    joblib.dump(family_mem_with_asd_encoder, 'family_mem_with_asd_encoder.pkl')
+    joblib.dump(scaler, 'scaler.pkl')
+    joblib.dump(feature_columns, 'feature_columns.pkl')
+    return X_scaled, y, feature_columns, scaler
+
+# Function to build and train the ANN model
+def build_ann(input_dim):
+    model = Sequential()
+    model.add(Dense(64, activation="relu", input_dim=input_dim))
+    model.add(Dense(64, activation="relu"))
+    model.add(Dense(1, activation="sigmoid"))
+    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+    return model
+
+def train_model(X_train, y_train):
+    global model
+    model = build_ann(X_train.shape[1])
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+    X_train = X_train.astype('float32')
+    y_train = y_train.astype('float32')
+    model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
+    model.save('asd_model.h5')
+
+# Function to load saved objects
 def load_saved_objects():
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test, feature_columns
     try:
@@ -38,65 +97,51 @@ def load_saved_objects():
     except FileNotFoundError as e:
         st.write(f"Error loading files: {e}")
         st.write("Please make sure to run the model training and saving code first.")
-        st.stop()  # Stop execution if files are missing
+        st.stop()
     except Exception as e:
         st.write(f"An unexpected error occurred: {e}")
         st.stop()
 
+# Function to predict ASD risk
 def predict_asd(input_data):
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, feature_columns, model
-
     if sex_encoder is None or jaundice_encoder is None or family_mem_with_asd_encoder is None or scaler is None or model is None or feature_columns is None:
         st.write("Error: Model or encoders not properly loaded.")
         return None
-
     input_data = pd.DataFrame([input_data])
-
     def handle_missing_labels(series, encoder):
         if encoder is None or not encoder.classes_.size:
             return series
         return series.apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
-
     if 'Sex' in input_data.columns:
         input_data["Sex"] = handle_missing_labels(input_data["Sex"], sex_encoder)
-
     if 'Jaundice' in input_data.columns:
         input_data["Jaundice"] = handle_missing_labels(input_data["Jaundice"], jaundice_encoder)
-
     if 'Family_mem_with_ASD' in input_data.columns:
         input_data["Family_mem_with_ASD"] = handle_missing_labels(input_data["Family_mem_with_ASD"], family_mem_with_asd_encoder)
-
     if sex_encoder is not None:
         input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
-
     if jaundice_encoder is not None:
         input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
-
     if family_mem_with_asd_encoder is not None:
         input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
-
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
-
     input_data = input_data.reindex(columns=feature_columns, fill_value=0)
-
     input_data = scaler.transform(input_data)
     input_data = input_data.astype('float32')
-
     prediction = model.predict(input_data)
     return prediction[0][0]
 
-# Streamlit user interface
+# Streamlit UI
 st.title("ASD Screening Test")
-
-df = load_data()
-
+check_and_train_model()
+df = pd.read_csv("https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv")
 sex = st.selectbox("Sex", ["Male", "Female"])
 age_mons = st.number_input("Age (in months)", min_value=0)
 jaundice = st.selectbox("Jaundice", ["Yes", "No"])
 family_asd = st.selectbox("Family member with ASD", ["Yes", "No"])
 ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique() if df is not None else [])
 who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique() if df is not None else [])
-
 questions = {
     "A1": st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"]),
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
@@ -109,7 +154,6 @@ questions = {
     "A9": st.selectbox("Does your child respond to their name being called?", ["Yes", "No"]),
     "A10": st.selectbox("Does your child follow simple instructions?", ["Yes", "No"])
 }
-
 input_data = {
     "Sex": sex,
     "Age": age_mons,
@@ -119,7 +163,6 @@ input_data = {
     "Who completed the test": who_completed_test,
     **questions
 }
-
 if st.button("Predict"):
     load_saved_objects()
     try:
