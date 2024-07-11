@@ -30,11 +30,11 @@ def preprocess_data(df):
     df["Jaundice"] = jaundice_encoder.fit_transform(df["Jaundice"])
     df["Family_mem_with_ASD"] = family_mem_with_asd_encoder.fit_transform(df["Family_mem_with_ASD"])
     
-    # One-hot encoding for Ethnicity and Who_completed_the_test
+    # One-hot encoding for Ethnicity and Who completed the test
     df = pd.get_dummies(df, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    X = df.drop("Class/ASD Traits", axis=1)
-    y = df["Class/ASD Traits"].apply(lambda x: 1 if x == "YES" else 0)
+    X = df.drop("Class/ASD Traits ", axis=1)  # Pastikan nama kolom sesuai
+    y = df["Class/ASD Traits "].apply(lambda x: 1 if x == "YES" else 0)
     
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
@@ -47,76 +47,82 @@ def build_ann(input_dim):
     model.add(Dense(64, activation="relu", input_dim=input_dim))
     model.add(Dense(64, activation="relu"))
     model.add(Dense(1, activation="sigmoid"))
-    model.compile(optimizer="Adam", loss="binary_crossentropy", metrics=["accuracy"])
+    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
     return model
 
-# Load data
-df = load_data()
+# Main
+st.title("ASD Screening Test")
 
-# Preprocess data
+df = load_data()
 X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
 
 # Split data
-X_train_scaled, X_test_scaled, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
 # Build and train the model
-model = build_ann(X_train_scaled.shape[1])
-callback = EarlyStopping(monitor="val_loss", patience=10, verbose=1, restore_best_weights=True)
-history = model.fit(X_train_scaled, y_train, epochs=100, batch_size=20, validation_split=0.2, callbacks=[callback])
+model = build_ann(X_train.shape[1])
+callback = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+history = model.fit(X_train, y_train, epochs=100, batch_size=20, validation_split=0.2, callbacks=[callback])
 
-# Predict
-y_prob = model.predict(X_test_scaled)
-y_pred = np.where(y_prob > 0.5, 1, 0)
-
-# Evaluation
+# Predict and evaluate
+y_prob = model.predict(X_test)
+y_pred = (y_prob > 0.5).astype(int)
 accuracy = accuracy_score(y_test, y_pred)
 precision = precision_score(y_test, y_pred)
 recall = recall_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
 
-# Streamlit UI
-st.title("ASD Screening Test")
-st.write(f"Model Accuracy: {accuracy:.2f}")
-st.write(f"Model Precision: {precision:.2f}")
-st.write(f"Model Recall: {recall:.2f}")
-st.write(f"Model F1 Score: {f1:.2f}")
+st.write(f"Accuracy: {accuracy}")
+st.write(f"Precision: {precision}")
+st.write(f"Recall: {recall}")
+st.write(f"F1 Score: {f1}")
 
-# Form for user input
-st.header("Input Data")
-A1 = st.selectbox("Does your child look at you when you call his/her name?", [0, 1])
-A2 = st.selectbox("How easy is it for you to get eye contact with your child?", [0, 1])
-A3 = st.selectbox("Does your child point to indicate that s/he wants something? (e.g. a toy that is out of reach)", [0, 1])
-A4 = st.selectbox("Does your child point to share interest with you? (e.g. pointing at an interesting sight)", [0, 1])
-A5 = st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", [0, 1])
-A6 = st.selectbox("Does your child follow where you’re looking?", [0, 1])
-A7 = st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", [0, 1])
-A8 = st.selectbox("Would you describe your child’s first words as:", [0, 1])
-A9 = st.selectbox("Does your child use simple gestures? (e.g. wave goodbye)", [0, 1])
-A10 = st.selectbox("Does your child stare at nothing with no apparent purpose?", [0, 1])
-Age_Mons = st.number_input("Age in months", min_value=0, max_value=240)
-Sex = st.selectbox("Sex", ["M", "F"])
-Ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
-Jaundice = st.selectbox("Has the child been diagnosed with Jaundice?", ["Yes", "No"])
-Family_mem_with_ASD = st.selectbox("Any family member with ASD?", ["Yes", "No"])
-Who_completed_the_test = st.selectbox("Who completed the test?", df["Who completed the test"].unique())
+# Input form for new predictions
+st.header("Predict ASD")
+with st.form(key="input_form"):
+    A1 = st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"])
+    A2 = st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"])
+    A3 = st.selectbox("Does your child point to indicate that s/he wants something?", ["Yes", "No"])
+    A4 = st.selectbox("Does your child point to share interest with you?", ["Yes", "No"])
+    A5 = st.selectbox("Does your child pretend?", ["Yes", "No"])
+    A6 = st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"])
+    A7 = st.selectbox("If someone in the family is upset, does your child comfort them?", ["Yes", "No"])
+    A8 = st.selectbox("Would you describe your child’s first words as?", ["Yes", "No"])
+    A9 = st.selectbox("Does your child use simple gestures?", ["Yes", "No"])
+    A10 = st.selectbox("Does your child stare at nothing with no apparent purpose?", ["Yes", "No"])
+    Age_Mons = st.number_input("Child's age in months", min_value=0, max_value=120)
+    Sex = st.selectbox("Sex", ["Male", "Female"])
+    Ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
+    Jaundice = st.selectbox("Has the child had jaundice?", ["Yes", "No"])
+    Family_mem_with_ASD = st.selectbox("Any family member with ASD?", ["Yes", "No"])
+    Who_completed_the_test = st.selectbox("Who completed the test?", df["Who completed the test"].unique())
+    submit_button = st.form_submit_button(label="Predict")
 
-# Predict button
-if st.button("Predict"):
-    user_data = pd.DataFrame({
-        "A1": [A1], "A2": [A2], "A3": [A3], "A4": [A4], "A5": [A5], "A6": [A6],
-        "A7": [A7], "A8": [A8], "A9": [A9], "A10": [A10], "Age_Mons": [Age_Mons],
-        "Sex": [Sex], "Ethnicity": [Ethnicity], "Jaundice": [Jaundice],
-        "Family_mem_with_ASD": [Family_mem_with_ASD], "Who completed the test": [Who_completed_the_test]
-    })
-    
-    user_data["Sex"] = sex_encoder.transform(user_data["Sex"])
-    user_data["Jaundice"] = jaundice_encoder.transform(user_data["Jaundice"])
-    user_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(user_data["Family_mem_with_ASD"])
-    user_data = pd.get_dummies(user_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
-    user_data = user_data.reindex(columns=X.columns, fill_value=0)
-    
-    user_data_scaled = scaler.transform(user_data)
-    user_prob = model.predict(user_data_scaled)
-    user_pred = np.where(user_prob > 0.5, "Yes", "No")
-    
-    st.write(f"Predicted ASD Traits: {user_pred[0]}")
+if submit_button:
+    input_data = pd.DataFrame(
+        [[A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, Age_Mons, Sex, Ethnicity, Jaundice, Family_mem_with_ASD, Who_completed_the_test]],
+        columns=["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "Age_Mons", "Sex", "Ethnicity", "Jaundice", "Family_mem_with_ASD", "Who completed the test"]
+    )
+
+    # Encode input data
+    input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
+    input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
+    input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
+    input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
+
+    # Handle missing columns due to one-hot encoding
+    missing_cols = set(X.columns) - set(input_data.columns)
+    for col in missing_cols:
+        input_data[col] = 0
+
+    input_data = input_data[X.columns]
+
+    # Scale input data
+    input_data_scaled = scaler.transform(input_data)
+
+    # Predict
+    prediction_prob = model.predict(input_data_scaled)
+    prediction = (prediction_prob > 0.5).astype(int)
+
+    result = "Positive for ASD" if prediction[0] == 1 else "Negative for ASD"
+    st.write(f"Prediction: {result}")
