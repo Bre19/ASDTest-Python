@@ -15,6 +15,8 @@ jaundice_encoder = None
 family_mem_with_asd_encoder = None
 scaler = None
 model = None
+X_test = None
+y_test = None
 
 # Function to load data from URL
 @st.cache_data
@@ -66,6 +68,7 @@ def build_ann(input_dim):
     return model
 
 def train_model(X_train, y_train):
+    global model
     model = build_ann(X_train.shape[1])
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
     
@@ -77,23 +80,26 @@ def train_model(X_train, y_train):
     # Save the trained model
     model.save('asd_model.h5')
 
+def prepare_model_and_data():
+    global df, X_test, y_test
+    X_scaled, y = preprocess_data(df)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    train_model(X_train, y_train)
+    # Save X_test and y_test for later use
+    joblib.dump(X_test, 'X_test.pkl')
+    joblib.dump(y_test, 'y_test.pkl')
+
 # Load saved objects
 def load_saved_objects():
-    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model, X_test, y_test
     sex_encoder = joblib.load('sex_encoder.pkl')
     jaundice_encoder = joblib.load('jaundice_encoder.pkl')
     family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
     scaler = joblib.load('scaler.pkl')
     model = load_model('asd_model.h5')
+    X_test = joblib.load('X_test.pkl')
+    y_test = joblib.load('y_test.pkl')
 
-def prepare_model_and_data():
-    global df
-    X_scaled, y = preprocess_data(df)
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-    train_model(X_train, y_train)
-    return X_test, y_test
-
-# Function to make predictions
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
@@ -155,9 +161,9 @@ for key, answer in questions.items():
 
 # Show prediction results only when 'Submit' is clicked
 if st.button("Submit"):
-    # Initialize model only if it does not exist
-    if not os.path.exists('asd_model.h5'):
-        X_test, y_test = prepare_model_and_data()
+    # Initialize model and data if not done yet
+    if not os.path.exists('asd_model.h5') or not os.path.exists('X_test.pkl'):
+        prepare_model_and_data()
     
     load_saved_objects()
 
