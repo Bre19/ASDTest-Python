@@ -31,6 +31,7 @@ def preprocess_data(df):
     
     global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler
     
+    # Fit label encoders
     sex_encoder = LabelEncoder()
     jaundice_encoder = LabelEncoder()
     family_mem_with_asd_encoder = LabelEncoder()
@@ -104,6 +105,19 @@ def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
     
+    # Check for unseen labels
+    if 'Sex' in input_data.columns:
+        if any(label not in sex_encoder.classes_ for label in input_data["Sex"]):
+            raise ValueError("Unseen label found in 'Sex' feature.")
+    
+    if 'Jaundice' in input_data.columns:
+        if any(label not in jaundice_encoder.classes_ for label in input_data["Jaundice"]):
+            raise ValueError("Unseen label found in 'Jaundice' feature.")
+    
+    if 'Family_mem_with_ASD' in input_data.columns:
+        if any(label not in family_mem_with_asd_encoder.classes_ for label in input_data["Family_mem_with_ASD"]):
+            raise ValueError("Unseen label found in 'Family_mem_with_ASD' feature.")
+    
     # Transform categorical features
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
@@ -144,35 +158,33 @@ questions = {
     "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
     "A8": st.selectbox("Would you describe your child’s first words as:", ["Yes", "No"]),
     "A9": st.selectbox("Does your child use simple gestures? (e.g. wave goodbye)", ["Yes", "No"]),
-    "A10": st.selectbox("Does your child stare at nothing with no apparent purpose?", ["Yes", "No"]),
+    "A10": st.selectbox("Does your child get upset if you change the routine?", ["Yes", "No"])
 }
 
-input_data = {
-    "Sex": sex,
-    "Age_Mons": age_mons,
-    "Jaundice": jaundice,
-    "Family_mem_with_ASD": family_asd,
-    "Ethnicity": ethnicity,
-    "Who completed the test": who_completed_test
-}
+# Convert answers to list
+answers = list(questions.values())
 
-for key, answer in questions.items():
-    input_data[key] = answer
-
-# Show prediction results only when 'Submit' is clicked
 if st.button("Submit"):
-    # Initialize model and data if not done yet
-    if not os.path.exists('asd_model.h5') or not os.path.exists('X_test.pkl'):
-        prepare_model_and_data()
+    # Prepare input data
+    input_data = {
+        "Sex": sex,
+        "Age": age_mons,
+        "Jaundice": jaundice,
+        "Family_mem_with_ASD": family_asd,
+        "Ethnicity": ethnicity,
+        "Who completed the test": who_completed_test,
+        **dict(zip(questions.keys(), answers))
+    }
     
+    # Load saved objects and make predictions
     load_saved_objects()
-
-    # Compute test accuracy only on 'Submit'
-    test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
-    st.write(f"Test Accuracy: {test_accuracy:.2f}")
     
-    prediction = predict_asd(input_data)
-    if prediction > 0.5:
-        st.write("The model predicts: Likely to have ASD.")
-    else:
-        st.write("The model predicts: Unlikely to have ASD.")
+    try:
+        prediction = predict_asd(input_data)
+        st.write(f"Prediction score: {prediction:.2f}")
+        if prediction > 0.5:
+            st.write("The model predicts: Likely to have ASD.")
+        else:
+            st.write("The model predicts: Unlikely to have ASD.")
+    except ValueError as e:
+        st.write(f"Error: {e}")
