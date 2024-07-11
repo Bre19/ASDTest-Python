@@ -8,7 +8,7 @@ import streamlit as st
 import joblib  # For saving and loading objects
 import os
 
-# Load and preprocess the data
+# Fungsi untuk memuat data dari URL
 @st.cache_data
 def load_data():
     url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
@@ -38,7 +38,7 @@ def preprocess_data(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Save the encoders and scaler
+    # Simpan encoder dan scaler
     joblib.dump(sex_encoder, 'sex_encoder.pkl')
     joblib.dump(jaundice_encoder, 'jaundice_encoder.pkl')
     joblib.dump(family_mem_with_asd_encoder, 'family_mem_with_asd_encoder.pkl')
@@ -63,36 +63,30 @@ def train_model(X_train, y_train):
     
     history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
     
-    # Save the trained model
+    # Simpan model yang telah dilatih
     model.save('asd_model.h5')
 
-# Initialize model only once
-if not os.path.exists('asd_model.h5'):
-    df = load_data()
-    X_scaled, y = preprocess_data(df)
-
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-    train_model(X_train, y_train)
-
 # Load encoders, scaler, and model
-sex_encoder = joblib.load('sex_encoder.pkl')
-jaundice_encoder = joblib.load('jaundice_encoder.pkl')
-family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
-scaler = joblib.load('scaler.pkl')
-model = load_model('asd_model.h5')
+def load_saved_objects():
+    global sex_encoder, jaundice_encoder, family_mem_with_asd_encoder, scaler, model
+    sex_encoder = joblib.load('sex_encoder.pkl')
+    jaundice_encoder = joblib.load('jaundice_encoder.pkl')
+    family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
+    scaler = joblib.load('scaler.pkl')
+    model = load_model('asd_model.h5')
 
-# Function to make predictions
+# Fungsi untuk memprediksi ASD
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
     
-    # Transform categorical features
+    # Transformasi fitur kategorikal
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    # Ensure input data has the same columns as the training data
+    # Pastikan data input memiliki kolom yang sama dengan data pelatihan
     input_data = input_data.reindex(columns=df.columns.difference(["Class/ASD Traits "]), fill_value=0)
     
     input_data = scaler.transform(input_data)
@@ -104,7 +98,7 @@ def predict_asd(input_data):
 # Streamlit user interface
 st.title("ASD Screening Test")
 
-# Collect user input for 10 questions and other features
+# Input user untuk 10 pertanyaan dan fitur lainnya
 sex = st.selectbox("Sex", ["Male", "Female"])
 age_mons = st.number_input("Age (in months)", min_value=0)
 jaundice = st.selectbox("Jaundice", ["Yes", "No"])
@@ -112,7 +106,7 @@ family_asd = st.selectbox("Family member with ASD", ["Yes", "No"])
 ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
 who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique())
 
-# Collect answers to 10 questions
+# Input jawaban untuk 10 pertanyaan
 questions = {
     "A1": st.selectbox("Does your child look at you when you call his/her name?", ["Yes", "No"]),
     "A2": st.selectbox("How easy is it for you to get eye contact with your child?", ["Yes", "No"]),
@@ -138,14 +132,18 @@ input_data = {
 for key, answer in questions.items():
     input_data[key] = answer
 
-# Show prediction results only when 'Submit' is clicked
+# Menampilkan hasil prediksi hanya saat tombol 'Submit' diklik
 if st.button("Submit"):
-    # Load data again for evaluation only if the model was trained (i.e., X_test and y_test exist)
-    df = load_data()
-    X_scaled, y = preprocess_data(df)
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    # Load data lagi untuk evaluasi hanya jika model sudah dilatih (yaitu, X_test dan y_test ada)
+    if not os.path.exists('asd_model.h5'):
+        df = load_data()
+        X_scaled, y = preprocess_data(df)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+        train_model(X_train, y_train)
+    
+    load_saved_objects()
 
-    # Compute test accuracy only on 'Submit'
+    # Hitung akurasi tes hanya saat 'Submit'
     test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
     st.write(f"Test Accuracy: {test_accuracy:.2f}")
     
