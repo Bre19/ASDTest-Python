@@ -14,44 +14,30 @@ def load_data():
     return data
 
 def preprocess_data(df):
-    # Replace categorical values with numeric ones
     df.replace({"Yes": 1, "No": 0}, inplace=True)
     
-    # Define label encoders
     sex_encoder = LabelEncoder()
     jaundice_encoder = LabelEncoder()
     family_mem_with_asd_encoder = LabelEncoder()
     
-    # Fit the label encoders
     sex_encoder.fit(df["Sex"])
     jaundice_encoder.fit(df["Jaundice"])
     family_mem_with_asd_encoder.fit(df["Family_mem_with_ASD"])
     
-    # Prepare the features and target variable
     X = df.drop("Class/ASD Traits ", axis=1)
     y = df["Class/ASD Traits "]
     
-    # Apply the label encoding
     X["Sex"] = sex_encoder.transform(X["Sex"])
     X["Jaundice"] = jaundice_encoder.transform(X["Jaundice"])
     X["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(X["Family_mem_with_ASD"])
     
-    # Apply one-hot encoding
     X = pd.get_dummies(X, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    # Standardize features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
     return X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder
 
-df = load_data()
-X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
-
-# Split the data into training and test sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-
-# Build the model
 def build_ann(input_dim):
     model = Sequential()
     model.add(Dense(64, activation="relu", input_dim=input_dim))
@@ -61,43 +47,38 @@ def build_ann(input_dim):
     return model
 
 # Initialize and train the model
+df = load_data()
+X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 model = build_ann(X_train.shape[1])
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-# Ensure the data is in the correct format
 X_train = X_train.astype('float32')
 y_train = y_train.astype('float32')
 X_test = X_test.astype('float32')
 y_test = y_test.astype('float32')
 
+# Train the model only once
 history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
 
 # Evaluate the model
 test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
 st.write(f"Test Accuracy: {test_accuracy}")
 
-# Make predictions
+# Function to make predictions
 def predict_asd(input_data):
-    # Ensure the input data is a DataFrame
     input_data = pd.DataFrame([input_data])
-    
-    # Apply preprocessing steps
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
-    # Align the columns with the training data
     input_data = input_data.reindex(columns=df.columns.difference(["Class/ASD Traits "]), fill_value=0)
-    
-    # Apply scaling
     input_data = scaler.transform(input_data)
-    
-    # Ensure the input data is in the correct format
     input_data = input_data.astype('float32')
     
-    # Make prediction
     prediction = model.predict(input_data)
     return prediction[0][0]
 
@@ -135,7 +116,6 @@ input_data = {
     "Who completed the test": who_completed_test
 }
 
-# Add answers to the 10 questions to the input data
 for key, answer in questions.items():
     input_data[key] = answer
 
