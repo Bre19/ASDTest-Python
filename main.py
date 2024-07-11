@@ -8,7 +8,7 @@ import streamlit as st
 import joblib  # For saving and loading objects
 import os
 
-# Global variables for data
+# Global variables for data and model
 df = None
 sex_encoder = None
 jaundice_encoder = None
@@ -86,6 +86,13 @@ def load_saved_objects():
     scaler = joblib.load('scaler.pkl')
     model = load_model('asd_model.h5')
 
+def prepare_model_and_data():
+    global df
+    X_scaled, y = preprocess_data(df)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    train_model(X_train, y_train)
+    return X_test, y_test
+
 # Function to make predictions
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
@@ -150,9 +157,7 @@ for key, answer in questions.items():
 if st.button("Submit"):
     # Initialize model only if it does not exist
     if not os.path.exists('asd_model.h5'):
-        X_scaled, y = preprocess_data(df)
-        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-        train_model(X_train, y_train)
+        X_test, y_test = prepare_model_and_data()
     
     load_saved_objects()
 
