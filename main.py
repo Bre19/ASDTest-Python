@@ -1,10 +1,11 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
+import joblib  # For saving and loading objects
 
 # Load and preprocess the data
 @st.cache_data
@@ -36,7 +37,13 @@ def preprocess_data(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    return X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder
+    # Save the encoders and scaler
+    joblib.dump(sex_encoder, 'sex_encoder.pkl')
+    joblib.dump(jaundice_encoder, 'jaundice_encoder.pkl')
+    joblib.dump(family_mem_with_asd_encoder, 'family_mem_with_asd_encoder.pkl')
+    joblib.dump(scaler, 'scaler.pkl')
+    
+    return X_scaled, y
 
 def build_ann(input_dim):
     model = Sequential()
@@ -46,9 +53,9 @@ def build_ann(input_dim):
     model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
     return model
 
-# Initialize and train the model
+# Initialize and train the model (Do this only once and save the model)
 df = load_data()
-X_scaled, y, scaler, sex_encoder, jaundice_encoder, family_mem_with_asd_encoder = preprocess_data(df)
+X_scaled, y = preprocess_data(df)
 
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 model = build_ann(X_train.shape[1])
@@ -62,20 +69,30 @@ y_test = y_test.astype('float32')
 # Train the model only once
 history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
 
-# Evaluate the model
-test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
-st.write(f"Test Accuracy: {test_accuracy}")
+# Save the trained model
+model.save('asd_model.h5')
+
+# Load encoders and scaler
+sex_encoder = joblib.load('sex_encoder.pkl')
+jaundice_encoder = joblib.load('jaundice_encoder.pkl')
+family_mem_with_asd_encoder = joblib.load('family_mem_with_asd_encoder.pkl')
+scaler = joblib.load('scaler.pkl')
+model = load_model('asd_model.h5')
 
 # Function to make predictions
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
     input_data.replace({"Yes": 1, "No": 0}, inplace=True)
+    
+    # Transform categorical features
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
     input_data["Jaundice"] = jaundice_encoder.transform(input_data["Jaundice"])
     input_data["Family_mem_with_ASD"] = family_mem_with_asd_encoder.transform(input_data["Family_mem_with_ASD"])
     input_data = pd.get_dummies(input_data, columns=["Ethnicity", "Who completed the test"], drop_first=True)
     
+    # Ensure input data has the same columns as the training data
     input_data = input_data.reindex(columns=df.columns.difference(["Class/ASD Traits "]), fill_value=0)
+    
     input_data = scaler.transform(input_data)
     input_data = input_data.astype('float32')
     
@@ -119,8 +136,12 @@ input_data = {
 for key, answer in questions.items():
     input_data[key] = answer
 
-# Predict and display results after clicking submit
+# Show Test Accuracy only when 'Submit' is clicked
 if st.button("Submit"):
+    # Compute test accuracy only on 'Submit'
+    test_loss, test_accuracy = model.evaluate(X_test, y_test, verbose=0)
+    st.write(f"Test Accuracy: {test_accuracy}")
+    
     prediction = predict_asd(input_data)
     if prediction > 0.5:
         st.write("The model predicts: Likely to have ASD.")
