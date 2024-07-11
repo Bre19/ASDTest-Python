@@ -8,12 +8,16 @@ import streamlit as st
 import joblib  # For saving and loading objects
 import os
 
+# Global variable for data
+df = None
+
 # Fungsi untuk memuat data dari URL
 @st.cache_data
 def load_data():
+    global df
     url = "https://raw.githubusercontent.com/Bre19/ASDTest-Python/main/data/Toddler%20Autism%20dataset%20July%202018.csv"
-    data = pd.read_csv(url)
-    return data
+    df = pd.read_csv(url)
+    return df
 
 def preprocess_data(df):
     df.replace({"Yes": 1, "No": 0}, inplace=True)
@@ -103,8 +107,8 @@ sex = st.selectbox("Sex", ["Male", "Female"])
 age_mons = st.number_input("Age (in months)", min_value=0)
 jaundice = st.selectbox("Jaundice", ["Yes", "No"])
 family_asd = st.selectbox("Family member with ASD", ["Yes", "No"])
-ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique())
-who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique())
+ethnicity = st.selectbox("Ethnicity", df["Ethnicity"].unique() if df is not None else [])
+who_completed_test = st.selectbox("Who completed the test", df["Who completed the test"].unique() if df is not None else [])
 
 # Input jawaban untuk 10 pertanyaan
 questions = {
