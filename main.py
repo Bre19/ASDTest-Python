@@ -6,7 +6,6 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import EarlyStopping
 import streamlit as st
 import joblib  # For saving and loading objects
-import os
 
 # Global variables for data and model
 df = None
@@ -103,20 +102,26 @@ def load_saved_objects():
 
 def predict_asd(input_data):
     input_data = pd.DataFrame([input_data])
-    input_data.replace({"Yes": 1, "No": 0}, inplace=True)
     
     # Check for unseen labels
+    missing_labels = []
     if 'Sex' in input_data.columns:
-        if any(label not in sex_encoder.classes_ for label in input_data["Sex"]):
-            raise ValueError("Unseen label found in 'Sex' feature.")
+        unseen_labels = set(input_data["Sex"]) - set(sex_encoder.classes_)
+        if unseen_labels:
+            missing_labels.append(f"Unseen labels in 'Sex': {unseen_labels}")
     
     if 'Jaundice' in input_data.columns:
-        if any(label not in jaundice_encoder.classes_ for label in input_data["Jaundice"]):
-            raise ValueError("Unseen label found in 'Jaundice' feature.")
+        unseen_labels = set(input_data["Jaundice"]) - set(jaundice_encoder.classes_)
+        if unseen_labels:
+            missing_labels.append(f"Unseen labels in 'Jaundice': {unseen_labels}")
     
     if 'Family_mem_with_ASD' in input_data.columns:
-        if any(label not in family_mem_with_asd_encoder.classes_ for label in input_data["Family_mem_with_ASD"]):
-            raise ValueError("Unseen label found in 'Family_mem_with_ASD' feature.")
+        unseen_labels = set(input_data["Family_mem_with_ASD"]) - set(family_mem_with_asd_encoder.classes_)
+        if unseen_labels:
+            missing_labels.append(f"Unseen labels in 'Family_mem_with_ASD': {unseen_labels}")
+    
+    if missing_labels:
+        raise ValueError("; ".join(missing_labels))
     
     # Transform categorical features
     input_data["Sex"] = sex_encoder.transform(input_data["Sex"])
@@ -156,8 +161,8 @@ questions = {
     "A5": st.selectbox("Does your child pretend? (e.g. care for dolls, talk on a toy phone)", ["Yes", "No"]),
     "A6": st.selectbox("Does your child follow where you’re looking?", ["Yes", "No"]),
     "A7": st.selectbox("If you or someone else in the family is visibly upset, does your child show signs of wanting to comfort them? (e.g. stroking hair, hugging them)", ["Yes", "No"]),
-    "A8": st.selectbox("Would you describe your child’s first words as:", ["Yes", "No"]),
-    "A9": st.selectbox("Does your child use simple gestures? (e.g. wave goodbye)", ["Yes", "No"]),
+    "A8": st.selectbox("Does your child enjoy playing with other children?", ["Yes", "No"]),
+    "A9": st.selectbox("Does your child often focus on one activity or toy for a long time?", ["Yes", "No"]),
     "A10": st.selectbox("Does your child get upset if you change the routine?", ["Yes", "No"])
 }
 
