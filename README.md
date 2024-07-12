@@ -11,4 +11,4 @@ The repository is organized as follows:
 
 ## Refference
 This works were modified from the original source on Kaggle.
-[Notebook Source]([https://asdtest-202204560022.streamlit.app/](https://www.kaggle.com/code/vishwasmishra1234/final-with-99-accuracy/notebook))
+[Notebook Source](https://www.kaggle.com/code/vishwasmishra1234/final-with-99-accuracy/notebook)
